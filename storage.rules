@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() { return isSignedIn() && request.auth.token.admin == true; }
+
+    // Each user's source uploads and AI results live under their uid.
+    match /users/{uid}/{allPaths=**} {
+      allow read:  if (isSignedIn() && request.auth.uid == uid) || isAdmin();
+      allow write: if isSignedIn() && request.auth.uid == uid
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*|video/.*');
+    }
+  }
+}

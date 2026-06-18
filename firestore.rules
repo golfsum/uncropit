@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // User profile docs. Owner can read/update their own; admins can read all.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid);
+      // Users may update their profile but NOT privileged fields.
+      allow update: if (isOwner(uid)
+                        && !request.resource.data.diff(resource.data)
+                              .affectedKeys().hasAny(['admin', 'disabled', 'role']))
+                    || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Support tickets. A user creates and reads their own. Admins read/write all.
+    match /tickets/{ticketId} {
+      allow create: if isSignedIn()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.status == 'open';
+      allow read:   if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      // Only admins change status/assignment. Owners can append nothing directly
+      // (replies go through the addTicketReply callable, which runs as admin/owner).
+      allow update, delete: if isAdmin();
+
+      // Threaded replies under a ticket.
+      match /messages/{messageId} {
+        allow read:   if isAdmin() || (isSignedIn()
+                          && get(/databases/$(database)/documents/tickets/$(ticketId)).data.uid == request.auth.uid);
+        allow create: if isAdmin() || (isSignedIn()
+                          && get(/databases/$(database)/documents/tickets/$(ticketId)).data.uid == request.auth.uid
+                          && request.resource.data.authorUid == request.auth.uid);
+        allow update, delete: if false;
+      }
+    }
+
+    // AI job records (written by Cloud Functions only via Admin SDK).
+    match /jobs/{jobId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow write: if false; // server-only
+    }
+
+    // Aggregate stats doc, server-maintained, readable by admins.
+    match /stats/{doc} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+  }
+}
