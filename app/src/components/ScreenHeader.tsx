@@ -1,7 +1,9 @@
 import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { theme } from "../theme";
+import { useEntitlement } from "../lib/entitlements";
 
 // App logo (assets/icon.png) shown next to the title.
 const LOGO = require("../../assets/icon.png");
@@ -9,17 +11,44 @@ const LOGO = require("../../assets/icon.png");
 /** The app's brand title — defined once, used by every screen header. */
 export const APP_TITLE = "Uncrop it AI: Photo Extender & Resizer";
 
+/** Compact, tappable usage pill — credits for subscribers, free-left otherwise. */
+function UsagePill() {
+  const router = useRouter();
+  const { plan, isPaid, credits, freeRemaining } = useEntitlement();
+
+  const label =
+    plan === "admin"
+      ? "Admin"
+      : isPaid
+      ? `${credits ?? 0} credits`
+      : `${freeRemaining} free today`;
+
+  const low = (isPaid && (credits ?? 0) <= 5) || (!isPaid && freeRemaining <= 0);
+
+  return (
+    <Pressable
+      onPress={() => router.push("/paywall")}
+      style={[styles.pill, low && styles.pillLow]}
+      hitSlop={8}
+    >
+      <Text style={[styles.pillTxt, low && styles.pillTxtLow]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 /**
  * Shared screen header: the brand title moved tight to the top, with an
  * optional subtitle and a right-aligned action (e.g. the Photo button).
- * Handles the top safe-area inset itself.
+ * Handles the top safe-area inset itself. Shows a usage/credits pill by default.
  */
 export function ScreenHeader({
   subtitle,
   right,
+  showUsage = true,
 }: {
   subtitle?: string;
   right?: React.ReactNode;
+  showUsage?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -29,6 +58,7 @@ export function ScreenHeader({
         <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
           {APP_TITLE}
         </Text>
+        {showUsage && <UsagePill />}
       </View>
       {(subtitle || right) && (
         <View style={styles.row}>
