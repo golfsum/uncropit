@@ -1,0 +1,13 @@
+{
+  "name": "Uncrop it AI: Photo Extender & Resizer",
+  "short_name": "Uncrop it AI",
+  "description": "AI photo extender and image resizer. Uncrop, expand, and resize any picture.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0b12",
+  "theme_color": "#0b0b12",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

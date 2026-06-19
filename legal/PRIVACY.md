@@ -1,9 +1,9 @@
-# UnCrop It Privacy Policy
+# Uncrop it AI Privacy Policy
 
 _Last updated: 2026-06-19_
 
-This policy explains what UnCrop It ("we", "us") collects, where it is stored, how long
-we keep it, and the choices you have. It applies to the UnCrop It iOS app and the website.
+This policy explains what Uncrop it AI ("we", "us") collects, where it is stored, how long
+we keep it, and the choices you have. It applies to the Uncrop it AI iOS app and the website.
 
 ## What we collect
 
@@ -44,10 +44,10 @@ and the result is returned to us. Data is processed and stored on servers locate
 
 ## Children
 
-UnCrop It is not directed to children under 13, and we do not knowingly collect their data.
+Uncrop it AI is not directed to children under 13, and we do not knowingly collect their data.
 
 ## Contact
 
-Questions about this policy: support via the in-app form, or contact us through https://www.ndsoft.dev.
+Questions about this policy: support via the in-app form, or contact us through https://uncropit.com.
 
 _This document is provided as-is and is not legal advice; have it reviewed before relying on it._

@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { getMyUsage, MyUsage, deleteAccount, deleteMyData, createTicket } from "../lib/api";
 
-const TERMS_URL = "https://www.ndsoft.dev/apps/uncrop-it/terms";
-const PRIVACY_URL = "https://www.ndsoft.dev/apps/uncrop-it/privacy";
 const CATEGORIES = ["Bug", "Billing", "Feature request", "Other"];
 
 function provider(user: ReturnType<typeof useAuth>["user"]): string {
@@ -141,8 +139,8 @@ export default function Account() {
       <div className="card">
         <strong>About</strong>
         <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-          <a href={TERMS_URL}>Terms of Service</a>
-          <a href={PRIVACY_URL}>Privacy Policy</a>
+          <Link to="/terms">Terms of Service</Link>
+          <Link to="/privacy">Privacy Policy</Link>
         </div>
       </div>
 

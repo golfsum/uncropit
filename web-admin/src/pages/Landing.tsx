@@ -3,8 +3,6 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useSeo } from "../lib/seo";
 
-const TERMS_URL = "https://www.ndsoft.dev/apps/uncrop-it/terms";
-const PRIVACY_URL = "https://www.ndsoft.dev/apps/uncrop-it/privacy";
 
 // One frame that rotates: the original photo resized (letterbox bars) cross-
 // fades to the same photo run through aiUncrop (Ideogram V3 Reframe), which
@@ -175,8 +173,8 @@ export default function Landing() {
 
       <footer className="lp-footer">
         <div style={{ marginBottom: 10 }}>
-          <a href={TERMS_URL}>Terms</a>
-          <a href={PRIVACY_URL}>Privacy</a>
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
           <Link to="/login">Sign in</Link>
         </div>
         © {new Date().getFullYear()} Uncrop it AI: Photo Extender &amp; Resizer. All rights reserved.

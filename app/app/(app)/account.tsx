@@ -9,8 +9,8 @@ import { useEntitlement } from "../../src/lib/entitlements";
 import { deleteAccount, deleteMyData } from "../../src/lib/api";
 import { theme } from "../../src/theme";
 
-const TERMS_URL = "https://www.ndsoft.dev/apps/uncrop-it/terms";
-const PRIVACY_URL = "https://www.ndsoft.dev/apps/uncrop-it/privacy";
+const TERMS_URL = "https://uncropit.com/terms";
+const PRIVACY_URL = "https://uncropit.com/privacy";
 const MANAGE_SUBS_URL = "https://apps.apple.com/account/subscriptions";
 
 function providerLabel(user: ReturnType<typeof useAuth>["user"]): string {

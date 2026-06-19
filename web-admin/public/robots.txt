@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin
 Disallow: /app
 
-Sitemap: https://uncropit.vercel.app/sitemap.xml
+Sitemap: https://uncropit.com/sitemap.xml

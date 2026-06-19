@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "og": "node scripts/gen-og.cjs"
+    "og": "node scripts/gen-og.cjs",
+    "favicon": "node scripts/gen-favicon.cjs"
   },
   "dependencies": {
     "firebase": "^11.1.0",
@@ -20,6 +21,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "sharp": "^0.35.2",
     "typescript": "^5.6.3",
     "vite": "^6.0.3"
   }

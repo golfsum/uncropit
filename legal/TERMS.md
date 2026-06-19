@@ -1,12 +1,12 @@
-# UnCrop It Terms of Service
+# Uncrop it AI Terms of Service
 
 _Last updated: 2026-06-19_
 
-By using the UnCrop It app or website you agree to these terms.
+By using the Uncrop it AI app or website you agree to these terms.
 
 ## The service
 
-UnCrop It lets you extend ("un-crop") and resize your images using AI. You upload an image, choose
+Uncrop it AI lets you extend ("un-crop") and resize your images using AI. You upload an image, choose
 a target shape or size, and we return a generated result.
 
 ## Your content
@@ -35,7 +35,7 @@ in our Privacy Policy.
 
 ## Acceptable use
 
-Do not use UnCrop It to create unlawful, harmful, infringing, or deceptive content, or to attempt to
+Do not use Uncrop it AI to create unlawful, harmful, infringing, or deceptive content, or to attempt to
 abuse, overload, or reverse engineer the service.
 
 ## Disclaimer and liability
@@ -49,6 +49,6 @@ We may update these terms. Continued use after an update means you accept the re
 
 ## Contact
 
-Reach us through the in-app support form or https://www.ndsoft.dev.
+Reach us through the in-app support form or https://uncropit.com.
 
 _This document is provided as-is and is not legal advice; have it reviewed before relying on it._

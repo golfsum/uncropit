@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 // NOTE: update this when you move to a custom domain (also in index.html,
 // public/sitemap.xml, public/robots.txt).
-export const SITE_URL = "https://uncropit.vercel.app";
+export const SITE_URL = "https://uncropit.com";
 
 export const BRAND = "Uncrop it AI: Photo Extender & Resizer";
 
