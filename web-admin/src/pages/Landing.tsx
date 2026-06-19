@@ -1,28 +1,41 @@
 import { Link } from "react-router-dom";
+import { useAuth } from "../lib/auth";
 
 const features = [
-  { title: "Un-crop to Widescreen", body: "Turn a tight vertical shot into a cinematic frame. AI fills the background seamlessly." },
-  { title: "Animate Photos", body: "Bring still portraits to life with subtle, natural micro-expressions." },
-  { title: "Private by design", body: "Built to run on the iPhone Neural Engine — your photos stay on your device." },
+  { title: "Un-crop to any shape", body: "Turn a tight crop into a widescreen, square, or vertical frame. AI extends the scene seamlessly." },
+  { title: "Resize for every platform", body: "Export the right size for Instagram, TikTok, the App Store, favicons, and more." },
+  { title: "Use it anywhere", body: "Right here in your browser, or on the iPhone app — your account syncs across both." },
 ];
 
 export default function Landing() {
+  const { user, isAdmin } = useAuth();
+
   return (
     <div>
       <div className="topbar">
-        <span className="brand">◈ Expand AI</span>
-        <Link to="/login"><button className="ghost">Admin sign-in</button></Link>
+        <span className="brand">◈ UnCrop It</span>
+        <div className="row">
+          {user ? (
+            <Link to="/app"><button>Open app</button></Link>
+          ) : (
+            <>
+              <Link to="/login"><button className="ghost">Sign in</button></Link>
+              <Link to="/signup"><button>Get started</button></Link>
+            </>
+          )}
+          {isAdmin && <Link to="/admin"><button className="outline">Admin</button></Link>}
+        </div>
       </div>
 
       <div className="hero">
-        <h1>Un-crop & animate<br />your photos with AI</h1>
+        <h1>Un-crop & resize<br />your photos with AI</h1>
         <p>
-          Expand AI extends any photo to a beautiful widescreen frame and animates faces —
-          fast, private, and right on your iPhone.
+          UnCrop It extends any photo to a beautiful new frame and resizes it for any platform —
+          fast and right in your browser. Try a few for free.
         </p>
-        <a href="#" onClick={(e) => e.preventDefault()}>
-          <button>Download on the App Store</button>
-        </a>
+        <Link to={user ? "/app" : "/signup"}>
+          <button>{user ? "Open the app" : "Start free"}</button>
+        </Link>
       </div>
 
       <div className="container">
@@ -36,7 +49,7 @@ export default function Landing() {
         </div>
 
         <p className="muted" style={{ textAlign: "center", marginTop: 60, fontSize: 13 }}>
-          © {new Date().getFullYear()} Expand AI · <Link to="/login">Admin</Link>
+          © {new Date().getFullYear()} UnCrop It · <Link to="/login">Sign in</Link>
         </p>
       </div>
     </div>

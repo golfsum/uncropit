@@ -175,6 +175,26 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
   const provider = (process.env.AI_PROVIDER || "ideogram").toLowerCase();
   const aspect = input.aspectRatio || process.env.REPLICATE_UNCROP_ASPECT || "16:9";
 
+  // --- Server-side free-usage limit (un-bypassable via cache/incognito) ---
+  // The count lives on the user's account, checked + reserved atomically here.
+  const FREE_LIMIT = parseInt(process.env.FREE_UNCROPS || "3", 10);
+  const userRef = db.collection("users").doc(uid);
+  const reserved = await db.runTransaction(async (tx) => {
+    const u = (await tx.get(userRef)).data() || {};
+    const isPro =
+      request.auth!.token.admin === true || u.pro === true || u.role === "admin";
+    if (isPro) return false; // Pro / admin → unlimited, nothing to reserve.
+    const used = u.uncropsUsed || 0;
+    if (used >= FREE_LIMIT) {
+      throw new HttpsError(
+        "resource-exhausted",
+        `You've used all ${FREE_LIMIT} free un-crops. Upgrade to Pro to continue.`
+      );
+    }
+    tx.set(userRef, { uncropsUsed: used + 1 }, { merge: true });
+    return true; // Reserved one free slot.
+  });
+
   try {
     let resultUrl: string;
 
@@ -196,6 +216,12 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
     const jobId = await recordJob(uid, "uncrop", input, "succeeded", resultUrl);
     return { ok: true, jobId, resultUrl };
   } catch (e) {
+    // Refund the reserved free slot if the run itself failed.
+    if (reserved) {
+      await userRef
+        .set({ uncropsUsed: FieldValue.increment(-1) }, { merge: true })
+        .catch(() => undefined);
+    }
     await recordJob(uid, "uncrop", input, "failed", undefined, String((e as Error).message));
     throw e;
   }
