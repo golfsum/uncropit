@@ -1,4 +1,4 @@
-# Expand AI — Photo Uncrop & Video Animator
+# Uncrop IT AI — Photo Uncrop & Video Animator
 
 A monorepo for an iOS app (built with Expo SDK 54, developable from **Windows + PowerShell** via EAS),
 a Firebase backend, and a website + admin dashboard.
