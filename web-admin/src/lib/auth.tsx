@@ -34,16 +34,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        const token = await u.getIdTokenResult(true);
-        setIsAdmin(token.claims.admin === true);
-      } else {
-        setIsAdmin(false);
-      }
+    let unsub = () => {};
+    try {
+      unsub = onAuthStateChanged(auth, async (u) => {
+        setUser(u);
+        if (u) {
+          const token = await u.getIdTokenResult(true);
+          setIsAdmin(token.claims.admin === true);
+        } else {
+          setIsAdmin(false);
+        }
+        setLoading(false);
+      });
+    } catch (e) {
+      // Bad/missing Firebase config (e.g. VITE_FIREBASE_* not set on the host) —
+      // don't crash the whole app to a blank page; show the UI signed-out.
+      console.error("[auth] init failed — check VITE_FIREBASE_* env vars", e);
       setLoading(false);
-    });
+    }
+    return () => unsub();
   }, []);
 
   const login = async (email: string, password: string) => {
