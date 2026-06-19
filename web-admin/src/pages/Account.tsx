@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { getMyUsage, deleteAccount, createTicket } from "../lib/api";
+import { getMyUsage, deleteAccount, deleteMyData, createTicket } from "../lib/api";
 
 const TERMS_URL = "https://www.ndsoft.dev/apps/uncrop-it/terms";
 const PRIVACY_URL = "https://www.ndsoft.dev/apps/uncrop-it/privacy";
@@ -48,10 +48,26 @@ export default function Account() {
     }
   }
 
-  async function confirmDelete() {
-    if (!confirm("Permanently delete your account, tickets, and uploads? This cannot be undone.")) return;
+  async function wipeData() {
+    if (!confirm("Delete your uploaded photos, saved results, and un-crop history? Your account stays. This cannot be undone.")) return;
     try {
-      setBusy("delete");
+      setBusy("data");
+      await deleteMyData();
+      alert("Your data was deleted.");
+    } catch (e: any) {
+      alert(e?.message ?? "Could not delete.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function confirmDeleteAccount() {
+    const subWarn = usage.pro
+      ? "\n\nYou have an active subscription. Deleting your account does NOT cancel it - cancel in the App Store / your store settings first, or you may keep being charged."
+      : "";
+    if (!confirm(`Permanently delete your account and all data? This cannot be undone.${subWarn}`)) return;
+    try {
+      setBusy("account");
       await deleteAccount();
       await logout();
       nav("/", { replace: true });
@@ -111,9 +127,21 @@ export default function Account() {
         </div>
       </div>
 
+      {/* Data controls */}
+      <div className="card">
+        <strong>Your data</strong>
+        <p className="muted" style={{ margin: "6px 0 12px" }}>
+          We store your uploads and results in Firebase (Google Cloud) Storage and delete them after
+          30 days. You can delete them now without losing your account.
+        </p>
+        <button className="outline" onClick={wipeData} disabled={busy === "data"}>
+          {busy === "data" ? "Deleting…" : "Delete my data"}
+        </button>
+      </div>
+
       <button className="outline" style={{ marginTop: 8 }} onClick={logout}>Sign out</button>
-      <button className="danger" onClick={confirmDelete} disabled={busy === "delete"}>
-        {busy === "delete" ? "Deleting…" : "Delete account & data"}
+      <button className="danger" onClick={confirmDeleteAccount} disabled={busy === "account"}>
+        {busy === "account" ? "Deleting…" : "Delete account"}
       </button>
     </main>
   );

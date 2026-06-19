@@ -11,10 +11,23 @@
  * The very first admin is granted via bootstrapAdmin() using BOOTSTRAP_SECRET.
  */
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { auth as authTrigger } from "firebase-functions/v1";
 import { logger } from "firebase-functions/v2";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { auth, db, storage } from "./admin";
+
+const RETENTION_DAYS = 30;
+
+/** Delete a Storage object given its Firebase download URL (token URL). */
+async function deleteStorageUrl(url?: string | null): Promise<void> {
+  if (!url) return;
+  const m = url.match(/\/o\/([^?]+)/);
+  if (!m) return;
+  const path = decodeURIComponent(m[1]);
+  if (!path.startsWith("users/")) return;
+  await storage.bucket().file(path).delete().catch(() => undefined);
+}
 
 export { aiUncrop, aiAnimate } from "./ai";
 
@@ -98,6 +111,27 @@ export const setAdminClaim = onCall(async (request) => {
     { merge: true }
   );
   return { ok: true };
+});
+
+/**
+ * Self-service: a signed-in user whose UID is listed in the ADMIN_UIDS env var
+ * (comma-separated) gets the admin claim. Grant-only — removal is via the
+ * dashboard's "Revoke admin". The web app calls this on login.
+ */
+export const syncAdminClaim = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = request.auth.uid;
+  const allow = (process.env.ADMIN_UIDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const alreadyAdmin = request.auth.token.admin === true;
+  if (allow.includes(uid) && !alreadyAdmin) {
+    await auth.setCustomUserClaims(uid, { admin: true });
+    await db.collection("users").doc(uid).set({ role: "admin" }, { merge: true });
+    return { admin: true, changed: true };
+  }
+  return { admin: allow.includes(uid) || alreadyAdmin, changed: false };
 });
 
 // ---------------------------------------------------------------------------
@@ -262,4 +296,45 @@ export const deleteMyAccount = onCall(async (request) => {
   await auth.deleteUser(uid);
 
   return { ok: true };
+});
+
+/**
+ * Delete the user's DATA (uploaded photos, saved results, and un-crop history)
+ * but KEEP their account and subscription. For the "Delete my data" action.
+ */
+export const deleteMyData = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = request.auth.uid;
+
+  // Stored images (uploads + results).
+  await storage.bucket().deleteFiles({ prefix: `users/${uid}/` }).catch(() => undefined);
+
+  // Un-crop history records.
+  const jobs = await db.collection("jobs").where("uid", "==", uid).get();
+  for (const j of jobs.docs) await j.ref.delete().catch(() => undefined);
+
+  return { ok: true };
+});
+
+/**
+ * Daily: after RETENTION_DAYS, delete the saved result image but KEEP the job
+ * record (so history still shows "Un-cropped photo.jpg" with no preview).
+ */
+export const cleanupExpiredResults = onSchedule("every 24 hours", async () => {
+  const cutoff = Timestamp.fromMillis(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  const snap = await db
+    .collection("jobs")
+    .where("expired", "==", false)
+    .where("createdAt", "<", cutoff)
+    .orderBy("createdAt", "asc")
+    .limit(500)
+    .get();
+
+  let cleaned = 0;
+  for (const d of snap.docs) {
+    await deleteStorageUrl(d.data().resultUrl);
+    await d.ref.update({ expired: true, resultUrl: null });
+    cleaned++;
+  }
+  logger.info("cleanupExpiredResults", { scanned: snap.size, cleaned });
 });

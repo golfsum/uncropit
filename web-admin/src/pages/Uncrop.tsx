@@ -45,7 +45,7 @@ export default function Uncrop() {
       setStage("uploading");
       const imageUrl = await uploadUserImage(file);
       setStage("processing");
-      const out = await uncropImage({ imageUrl, aspectRatio: aspect });
+      const out = await uncropImage({ imageUrl, aspectRatio: aspect, fileName: file.name });
       setResultUrl(out.resultUrl);
     } catch (e: any) {
       setError(e?.message ?? "Something went wrong. Try again.");

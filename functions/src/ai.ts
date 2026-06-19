@@ -13,13 +13,41 @@
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
 import { FieldValue } from "firebase-admin/firestore";
-import { db } from "./admin";
+import { randomUUID } from "crypto";
+import { db, storage } from "./admin";
+
+// Copy an (ephemeral) result image into the user's Storage and return a durable
+// Firebase download URL (token-protected). Used for Pro history.
+async function persistResult(uid: string, srcUrl: string): Promise<string> {
+  const res = await fetch(srcUrl);
+  if (!res.ok) throw new Error("could not fetch result for storage");
+  const buf = Buffer.from(await res.arrayBuffer());
+  const path = `users/${uid}/results/${Date.now()}.jpg`;
+  const token = randomUUID();
+  await storage.bucket().file(path).save(buf, {
+    contentType: "image/jpeg",
+    metadata: { metadata: { firebaseStorageDownloadTokens: token } },
+  });
+  const bucket = storage.bucket().name;
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
+}
+
+// Delete a transient source upload once processing is done (parsed from its URL).
+async function deleteSource(url: string): Promise<void> {
+  const m = url.match(/\/o\/([^?]+)/);
+  if (!m) return;
+  const path = decodeURIComponent(m[1]);
+  if (!path.startsWith("users/")) return;
+  await storage.bucket().file(path).delete().catch(() => undefined);
+}
 
 interface AiInput {
   imageUrl: string; // public/download URL of the user's source image (in Storage)
   prompt?: string;
   // Uncrop target aspect ratio, e.g. "16:9", "1:1", "4:5", "9:16".
   aspectRatio?: string;
+  // Original file name, kept for the history label ("Un-cropped photo.jpg").
+  fileName?: string;
   // Animate: optional per-request driving video URL (overrides the env default).
   drivingVideoUrl?: string;
   template?: string;
@@ -104,9 +132,11 @@ async function recordJob(
   const ref = await db.collection("jobs").add({
     uid,
     type,
-    input,
+    fileName: input.fileName ?? null,
+    aspectRatio: input.aspectRatio ?? null,
     status,
     resultUrl: resultUrl ?? null,
+    expired: false, // set true by the 30-day cleanup once the image is deleted
     error: error ?? null,
     createdAt: FieldValue.serverTimestamp(),
   });
@@ -179,10 +209,10 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
   // The count lives on the user's account, checked + reserved atomically here.
   const FREE_LIMIT = parseInt(process.env.FREE_UNCROPS || "3", 10);
   const userRef = db.collection("users").doc(uid);
+  let isPro = false;
   const reserved = await db.runTransaction(async (tx) => {
     const u = (await tx.get(userRef)).data() || {};
-    const isPro =
-      request.auth!.token.admin === true || u.pro === true || u.role === "admin";
+    isPro = request.auth!.token.admin === true || u.pro === true || u.role === "admin";
     if (isPro) return false; // Pro / admin → unlimited, nothing to reserve.
     const used = u.uncropsUsed || 0;
     if (used >= FREE_LIMIT) {
@@ -213,8 +243,11 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
       });
     }
 
-    const jobId = await recordJob(uid, "uncrop", input, "succeeded", resultUrl);
-    return { ok: true, jobId, resultUrl };
+    // Pro users get a durable saved copy for history; free users get the
+    // ephemeral provider URL (download-only).
+    const finalUrl = isPro ? await persistResult(uid, resultUrl).catch(() => resultUrl) : resultUrl;
+    const jobId = await recordJob(uid, "uncrop", input, "succeeded", finalUrl);
+    return { ok: true, jobId, resultUrl: finalUrl };
   } catch (e) {
     // Refund the reserved free slot if the run itself failed.
     if (reserved) {
@@ -224,6 +257,9 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
     }
     await recordJob(uid, "uncrop", input, "failed", undefined, String((e as Error).message));
     throw e;
+  } finally {
+    // The source upload is transient — delete it once processing is done.
+    await deleteSource(input.imageUrl).catch(() => undefined);
   }
 });
 

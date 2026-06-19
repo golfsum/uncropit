@@ -15,10 +15,36 @@ import { functions, db, storage, auth } from "./firebase";
 const _uncrop = httpsCallable(functions, "aiUncrop");
 const _reply = httpsCallable(functions, "addTicketReply");
 const _deleteAccount = httpsCallable(functions, "deleteMyAccount");
+const _deleteData = httpsCallable(functions, "deleteMyData");
 
 /** Permanently delete the signed-in user's account, data, and uploads. */
 export async function deleteAccount(): Promise<void> {
   await _deleteAccount({});
+}
+
+/** Delete the user's data (images + history) but keep their account. */
+export async function deleteMyData(): Promise<void> {
+  await _deleteData({});
+}
+
+export interface JobRecord {
+  id: string;
+  type: string;
+  fileName: string | null;
+  aspectRatio: string | null;
+  resultUrl: string | null;
+  expired: boolean;
+  status: string;
+  createdAt?: { seconds: number };
+}
+
+/** The signed-in user's un-crop history (newest first). */
+export async function listMyJobs(): Promise<JobRecord[]> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return [];
+  const q = query(collection(db, "jobs"), where("uid", "==", uid), orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
 }
 
 export interface AiResult {
@@ -44,6 +70,7 @@ export async function uncropImage(params: {
   imageUrl: string;
   prompt?: string;
   aspectRatio?: string; // e.g. "16:9", "1:1", "4:5", "9:16"
+  fileName?: string;
 }): Promise<AiResult> {
   const res = await _uncrop(params);
   return res.data as AiResult;

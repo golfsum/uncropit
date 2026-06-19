@@ -6,6 +6,7 @@ import Signup from "./pages/Signup";
 import AppLayout from "./pages/AppLayout";
 import Uncrop from "./pages/Uncrop";
 import Resize from "./pages/Resize";
+import History from "./pages/History";
 import Account from "./pages/Account";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -45,6 +46,7 @@ export default function App() {
       >
         <Route index element={<Uncrop />} />
         <Route path="resize" element={<Resize />} />
+        <Route path="history" element={<History />} />
         <Route path="account" element={<Account />} />
       </Route>
 

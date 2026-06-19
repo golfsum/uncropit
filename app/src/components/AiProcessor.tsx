@@ -38,6 +38,7 @@ const ASPECTS: { id: string; label: string }[] = [
 export function AiProcessor({ mode }: { mode: "uncrop" }) {
   const insets = useSafeAreaInsets();
   const [localUri, setLocalUri] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [aspect, setAspect] = useState("16:9");
@@ -98,6 +99,7 @@ export function AiProcessor({ mode }: { mode: "uncrop" }) {
     });
     if (!res.canceled) {
       setLocalUri(res.assets[0].uri);
+      setFileName(res.assets[0].fileName ?? "photo.jpg");
       setResultUrl(null);
     }
   }
@@ -108,7 +110,7 @@ export function AiProcessor({ mode }: { mode: "uncrop" }) {
       setStage("uploading");
       const imageUrl = await uploadUserImage(localUri);
       setStage("processing");
-      const out = await uncropImage({ imageUrl, aspectRatio: aspect });
+      const out = await uncropImage({ imageUrl, aspectRatio: aspect, fileName: fileName ?? undefined });
       setResultUrl(out.resultUrl);
     } catch (e: any) {
       Alert.alert("Processing failed", e?.message ?? "Try again in a moment.");

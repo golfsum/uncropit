@@ -2,6 +2,7 @@ import { httpsCallable } from "firebase/functions";
 import {
   collection,
   query,
+  where,
   orderBy,
   getDocs,
   doc,
@@ -31,9 +32,38 @@ export async function uploadUserImage(file: File): Promise<string> {
   return getDownloadURL(r);
 }
 
-export async function uncropImage(params: { imageUrl: string; aspectRatio?: string }): Promise<AiResult> {
+export async function uncropImage(params: {
+  imageUrl: string;
+  aspectRatio?: string;
+  fileName?: string;
+}): Promise<AiResult> {
   const res = await call<AiResult>("aiUncrop")(params);
   return res.data;
+}
+
+export interface JobRecord {
+  id: string;
+  type: string;
+  fileName: string | null;
+  aspectRatio: string | null;
+  resultUrl: string | null;
+  expired: boolean;
+  status: string;
+  createdAt?: { seconds: number };
+}
+
+/** The signed-in user's un-crop history (newest first). */
+export async function listMyJobs(): Promise<JobRecord[]> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return [];
+  const q = query(collection(db, "jobs"), where("uid", "==", uid), orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+/** Delete the user's data (images + history) but keep their account. */
+export async function deleteMyData(): Promise<void> {
+  await call("deleteMyData")({});
 }
 
 /** Read the signed-in user's server-side usage (free un-crops used). */
@@ -95,6 +125,9 @@ export const setDisabled = (uid: string, disabled: boolean) =>
 
 export const setAdmin = (uid: string, admin: boolean) =>
   call("setAdminClaim")({ uid, admin }).then((r) => r.data);
+
+/** Grant the admin claim if this user's UID is in the ADMIN_UIDS env allowlist. */
+export const syncAdminClaim = () => call("syncAdminClaim")({}).then((r) => r.data);
 
 export const sendPasswordReset = (email: string) =>
   call<{ ok: boolean; link: string }>("adminSendPasswordReset")({ email }).then((r) => r.data);

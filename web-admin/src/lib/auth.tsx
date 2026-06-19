@@ -15,6 +15,7 @@ import {
   signOut as fbSignOut,
 } from "firebase/auth";
 import { auth } from "./firebase";
+import { syncAdminClaim } from "./api";
 
 interface AuthState {
   user: User | null;
@@ -39,6 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsub = onAuthStateChanged(auth, async (u) => {
         setUser(u);
         if (u) {
+          // If this UID is in the server-side ADMIN_UIDS allowlist, grant the
+          // claim, then force a token refresh so it takes effect immediately.
+          await syncAdminClaim().catch(() => undefined);
           const token = await u.getIdTokenResult(true);
           setIsAdmin(token.claims.admin === true);
         } else {

@@ -23,6 +23,7 @@ export default function AppLayout() {
       <nav className="app-tabs">
         <NavLink to="/app" end className={({ isActive }) => (isActive ? "active" : "")}>Un-crop</NavLink>
         <NavLink to="/app/resize" className={({ isActive }) => (isActive ? "active" : "")}>Resize</NavLink>
+        <NavLink to="/app/history" className={({ isActive }) => (isActive ? "active" : "")}>History</NavLink>
         <NavLink to="/app/account" className={({ isActive }) => (isActive ? "active" : "")}>Account</NavLink>
       </nav>
       <Outlet />

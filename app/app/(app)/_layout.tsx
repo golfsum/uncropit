@@ -44,6 +44,14 @@ export default function AppLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="crop-outline" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: "History",
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" size={size} color={color} />,
+        }}
+      />
       {/* Support is reached from the Account tab, not the tab bar. */}
       <Tabs.Screen name="support" options={{ href: null, headerShown: false }} />
       <Tabs.Screen

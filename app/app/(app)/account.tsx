@@ -6,7 +6,7 @@ import { Button, Card, Body, Subtitle } from "../../src/components/ui";
 import { ScreenHeader } from "../../src/components/ScreenHeader";
 import { useAuth } from "../../src/lib/auth";
 import { useEntitlement } from "../../src/lib/entitlements";
-import { deleteAccount } from "../../src/lib/api";
+import { deleteAccount, deleteMyData } from "../../src/lib/api";
 import { theme } from "../../src/theme";
 
 const TERMS_URL = "https://www.ndsoft.dev/apps/uncrop-it/terms";
@@ -32,18 +32,49 @@ export default function AccountScreen() {
 
   const isAnon = user?.isAnonymous;
 
-  function confirmDelete() {
+  function confirmWipeData() {
     Alert.alert(
-      "Delete account & data?",
-      "This permanently deletes your account, support tickets, and uploaded photos. This cannot be undone.",
+      "Delete my data?",
+      "This deletes your uploaded photos, saved results, and un-crop history. Your account and subscription stay. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: "Delete data",
           style: "destructive",
           onPress: async () => {
             try {
-              setBusy("delete");
+              setBusy("data");
+              await deleteMyData();
+              Alert.alert("Deleted", "Your data was removed.");
+            } catch (e: any) {
+              Alert.alert("Couldn't delete", e?.message ?? "Please try again.");
+            } finally {
+              setBusy(null);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  function confirmDeleteAccount() {
+    const subWarning = isPro
+      ? "\n\nYou have an active subscription. Deleting your account does NOT cancel it — cancel it first in Settings → Apple ID → Subscriptions, or you may keep being charged."
+      : "";
+    Alert.alert(
+      "Delete account?",
+      `This permanently deletes your account, data, and history. This cannot be undone.${subWarning}`,
+      [
+        { text: "Cancel", style: "cancel" },
+        ...(isPro
+          ? [{ text: "Manage subscription", onPress: () => Linking.openURL(MANAGE_SUBS_URL) }]
+          : []),
+        {
+          text: "Delete account",
+          style: "destructive" as const,
+          onPress: async () => {
+            try {
+              setBusy("account");
               await deleteAccount();
               await signOut();
             } catch (e: any) {
@@ -148,9 +179,21 @@ export default function AccountScreen() {
           }
         />
 
-        <Pressable onPress={confirmDelete} disabled={busy === "delete"} style={styles.deleteBtn}>
+        <Body style={styles.dataNote}>
+          Photos and results are stored in Firebase (Google Cloud) and deleted after 30 days. You can
+          delete your data anytime.
+        </Body>
+
+        <Button
+          label={busy === "data" ? "Deleting…" : "Delete my data"}
+          variant="outline"
+          style={{ marginTop: 10 }}
+          onPress={confirmWipeData}
+        />
+
+        <Pressable onPress={confirmDeleteAccount} disabled={busy === "account"} style={styles.deleteBtn}>
           <Ionicons name="trash-outline" size={18} color={theme.danger} />
-          <Text style={styles.deleteTxt}>{busy === "delete" ? "Deleting…" : "Delete account & data"}</Text>
+          <Text style={styles.deleteTxt}>{busy === "account" ? "Deleting…" : "Delete account"}</Text>
         </Pressable>
 
         <Body style={styles.version}>UnCrop It v1.0.0</Body>
@@ -170,6 +213,7 @@ const styles = StyleSheet.create({
   link: { color: theme.primary, fontWeight: "600", fontSize: 15 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 },
   meta: { fontSize: 13 },
+  dataNote: { fontSize: 12, marginTop: 26, textAlign: "center" },
   deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12, paddingVertical: 14 },
   deleteTxt: { color: theme.danger, fontWeight: "700", fontSize: 15 },
   aboutRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12 },
