@@ -77,4 +77,15 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   title: { color: theme.text, fontSize: 21, fontWeight: "800", lineHeight: 26, flex: 1 },
   sub: { color: theme.textDim, fontSize: 13, flex: 1 },
+  pill: {
+    backgroundColor: theme.surfaceAlt,
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  pillLow: { backgroundColor: "rgba(255,92,114,0.15)", borderColor: theme.danger },
+  pillTxt: { color: theme.text, fontSize: 12, fontWeight: "700" },
+  pillTxtLow: { color: theme.danger },
 });

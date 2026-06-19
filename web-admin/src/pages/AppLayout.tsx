@@ -1,24 +1,40 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
+import { doc, onSnapshot } from "firebase/firestore";
 import { useAuth } from "../lib/auth";
-import { getMyUsage, MyUsage } from "../lib/api";
+import { db, auth } from "../lib/firebase";
 
 const FREE_DAILY = 3;
+type Plan = "free" | "pro" | "studio" | "admin";
 
 export default function AppLayout() {
   const { logout } = useAuth();
-  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0 });
+  const [plan, setPlan] = useState<Plan>("free");
+  const [credits, setCredits] = useState<number | null>(null);
+  const [freeUsedToday, setFreeUsedToday] = useState(0);
+
+  // Live-read plan / credits / daily usage so the pill updates after each job.
   useEffect(() => {
-    getMyUsage().then(setUsage);
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const today = new Date().toISOString().slice(0, 10);
+    return onSnapshot(doc(db, "users", uid), (snap) => {
+      const d = snap.data() || {};
+      const p: Plan =
+        d.role === "admin" ? "admin" : d.plan === "pro" || d.plan === "studio" ? d.plan : "free";
+      setPlan(p);
+      setCredits(p === "pro" || p === "studio" ? d.credits ?? 0 : null);
+      setFreeUsedToday(d.freeDate === today ? d.freeUsed || 0 : 0);
+    });
   }, []);
 
-  const paid = usage.plan === "pro" || usage.plan === "studio";
-  const remaining = Math.max(0, FREE_DAILY - usage.freeUsedToday);
+  const paid = plan === "pro" || plan === "studio";
+  const remaining = Math.max(0, FREE_DAILY - freeUsedToday);
   const pill =
-    usage.plan === "admin"
+    plan === "admin"
       ? "Admin"
       : paid
-      ? `${usage.plan === "studio" ? "Studio" : "Pro"} · ${usage.credits ?? 0} credits`
+      ? `${plan === "studio" ? "Studio" : "Pro"} · ${credits ?? 0} credits`
       : `${remaining} free today`;
 
   return (
@@ -26,7 +42,9 @@ export default function AppLayout() {
       <header className="app-bar">
         <Link to="/" className="brand">◈ UnCrop It</Link>
         <div className="row">
-          <span className="pill">{pill}</span>
+          <Link to="/app/account" className={"pill" + (!paid && remaining <= 0 ? " pill-low" : "")} title="View plan & credits">
+            {pill}
+          </Link>
           <button className="outline" onClick={logout}>Sign out</button>
         </div>
       </header>
