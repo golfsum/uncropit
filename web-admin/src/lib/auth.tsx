@@ -47,9 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       });
     } catch (e) {
-      // Bad/missing Firebase config (e.g. VITE_FIREBASE_* not set on the host) —
+      // Bad/missing Firebase config (e.g. VITE_FIREBASE_* not set on the host) -
       // don't crash the whole app to a blank page; show the UI signed-out.
-      console.error("[auth] init failed — check VITE_FIREBASE_* env vars", e);
+      console.error("[auth] init failed - check VITE_FIREBASE_* env vars", e);
       setLoading(false);
     }
     return () => unsub();

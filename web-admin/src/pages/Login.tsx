@@ -10,7 +10,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Admins land on /admin, everyone else on the app — RequireAdmin guards /admin.
+  // Admins land on /admin, everyone else on the app - RequireAdmin guards /admin.
   async function go() {
     nav("/app", { replace: true });
   }

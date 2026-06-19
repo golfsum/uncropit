@@ -87,7 +87,7 @@ export default function Users() {
             {shown.map((u) => (
               <tr key={u.uid}>
                 <td>
-                  <div style={{ fontWeight: 600 }}>{u.displayName || (u.isAnonymous ? "Guest" : "—")}</div>
+                  <div style={{ fontWeight: 600 }}>{u.displayName || (u.isAnonymous ? "Guest" : "-")}</div>
                   <div className="muted">{u.email || u.uid.slice(0, 12) + "…"}</div>
                   {u.admin && <span className="badge on">admin</span>}
                 </td>
@@ -137,7 +137,7 @@ export default function Users() {
 }
 
 function fmt(iso?: string) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+  return isNaN(d.getTime()) ? "-" : d.toLocaleDateString();
 }

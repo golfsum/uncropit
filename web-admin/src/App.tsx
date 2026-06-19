@@ -31,7 +31,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
 
-      {/* The app — un-crop, requires any signed-in account */}
+      {/* The app - un-crop, requires any signed-in account */}
       <Route
         path="/app"
         element={
@@ -41,7 +41,7 @@ export default function App() {
         }
       />
 
-      {/* Admin dashboard — requires the admin custom claim */}
+      {/* Admin dashboard - requires the admin custom claim */}
       <Route
         path="/admin"
         element={
