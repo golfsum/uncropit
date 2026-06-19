@@ -9,6 +9,7 @@ const CATEGORIES = ["Bug", "Billing", "Feature request", "Other"];
 
 function provider(user: ReturnType<typeof useAuth>["user"]): string {
   if (!user) return "-";
+  if (user.isAnonymous) return "Guest (anonymous)";
   const map: Record<string, string> = { "google.com": "Google", "apple.com": "Apple", password: "Email" };
   const labels = user.providerData.map((p) => map[p.providerId]).filter(Boolean);
   return labels.length ? labels.join(", ") : "Email";
@@ -106,8 +107,17 @@ export default function Account() {
 
       {/* Identity */}
       <div className="card">
-        <strong>{user?.email || "Signed in"}</strong>
+        <strong>{user?.isAnonymous ? "Guest" : user?.email || "Signed in"}</strong>
         <p className="muted" style={{ margin: "6px 0 0" }}>Signed in with {provider(user)}</p>
+        <p className="muted" style={{ margin: "6px 0 0", fontSize: 12, wordBreak: "break-all" }}>
+          UID: {user?.uid}
+        </p>
+        {user?.isAnonymous && (
+          <p className="muted" style={{ margin: "8px 0 0", fontSize: 12 }}>
+            Guest sessions are tied to this device. Sign in with Google, Apple, or email to keep your
+            access and history.
+          </p>
+        )}
       </div>
 
       {/* Support */}
