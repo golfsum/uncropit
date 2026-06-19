@@ -89,7 +89,7 @@ export default function Uncrop() {
       const f = new File([blob], "uncropit.jpg", { type: blob.type || "image/jpeg" });
       const nav = navigator as any;
       if (nav.canShare && nav.canShare({ files: [f] })) {
-        await nav.share({ files: [f], title: "UnCrop It" });
+        await nav.share({ files: [f], title: "Uncrop it AI" });
         return;
       }
     } catch {

@@ -40,7 +40,7 @@ export default function AppLayout() {
   return (
     <div className="app-shell">
       <header className="app-bar">
-        <Link to="/" className="brand">◈ UnCrop It</Link>
+        <Link to="/" className="brand">◈ Uncrop it AI</Link>
         <div className="row">
           <Link to="/app/account" className={"pill" + (!paid && remaining <= 0 ? " pill-low" : "")} title="View plan & credits">
             {pill}

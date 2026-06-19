@@ -7,7 +7,7 @@ export default function AdminLayout() {
     <div>
       <div className="topbar">
         <div className="row">
-          <span className="brand">◈ UnCrop It</span>
+          <span className="brand">◈ Uncrop it AI</span>
           <nav className="admin">
             <NavLink to="/admin" end className={({ isActive }) => (isActive ? "active" : "")}>Dashboard</NavLink>
             <NavLink to="/admin/users" className={({ isActive }) => (isActive ? "active" : "")}>Users</NavLink>

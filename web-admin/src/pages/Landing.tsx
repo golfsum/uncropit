@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { useSeo } from "../lib/seo";
 
 const TERMS_URL = "https://www.ndsoft.dev/apps/uncrop-it/terms";
 const PRIVACY_URL = "https://www.ndsoft.dev/apps/uncrop-it/privacy";
@@ -20,7 +21,7 @@ function RotatingDemo({ src, expanded }: { src: string; expanded: string }) {
         <img src={src} alt="original with bars" className={`rot-img bars ${after ? "rot-hide" : ""}`} />
         <img src={expanded} alt="AI un-cropped" className={`rot-img ${after ? "" : "rot-hide"}`} />
         <span className={`rot-tag ${after ? "ai" : ""}`}>
-          {after ? "UnCrop It: no bars" : "Original: black bars"}
+          {after ? "Uncrop it AI: no bars" : "Original: black bars"}
         </span>
       </div>
       <figcaption>Same photo, resized vs AI un-cropped.</figcaption>
@@ -56,7 +57,7 @@ const FEATURES = [
 const FAQ = [
   { q: "What is Uncrop?", a: "Uncrop is an AI tool that extends your photo beyond its original edges, filling in new background so you can change the shape or aspect ratio without cutting out the subject." },
   { q: "Is it free?", a: "Yes. Every account gets a few free un-crops. Upgrade to Pro for unlimited use." },
-  { q: "Can I use it on my phone?", a: "Yes. UnCrop It runs in any browser, and there is an iPhone app too. Your account syncs across both." },
+  { q: "Can I use it on my phone?", a: "Yes. Uncrop it AI runs in any browser, and there is an iPhone app too. Your account syncs across both." },
   { q: "How does AI image expanding work?", a: "The AI analyzes the pixels at the edges of your photo and generates a natural continuation of the scene, matching the lighting, color, and detail." },
   { q: "Will it lower my image quality?", a: "No. Your original pixels are preserved and the new area is generated at high resolution, so the result stays sharp." },
 ];
@@ -65,10 +66,17 @@ export default function Landing() {
   const { user, isAdmin } = useAuth();
   const startHref = user ? "/app" : "/signup";
 
+  useSeo({
+    title: "Uncrop it AI: Photo Extender & Resizer | Expand & uncrop images with AI",
+    description:
+      "Free AI photo extender and image resizer. Uncrop and expand any picture beyond its edges, fill the background with AI, and resize photos for every platform — browser or iPhone.",
+    path: "/",
+  });
+
   return (
     <div>
       <div className="topbar">
-        <span className="brand">◈ UnCrop It</span>
+        <span className="brand">◈ Uncrop it AI</span>
         <div className="row">
           <Link to="/pricing"><button className="ghost">Pricing</button></Link>
           {user ? (
@@ -87,11 +95,11 @@ export default function Landing() {
         {/* Hero */}
         <section className="lp-hero">
           <h1>
-            Uncrop and <span className="grad">AI Expand</span><br />any image
+            Uncrop it AI: <span className="grad">Photo Extender</span><br />&amp; Image Resizer
           </h1>
           <p>
-            Extend your photo beyond its edges with AI. Upload an image, set the new canvas,
-            and watch the background complete itself in seconds.
+            The free AI photo extender and pic resizer. Uncrop and expand any image beyond its edges,
+            let AI fill in the background, and resize for every platform — in seconds.
           </p>
           <div className="lp-badges">
             <span>✓ Free HD download</span>
@@ -163,7 +171,7 @@ export default function Landing() {
           <a href={PRIVACY_URL}>Privacy</a>
           <Link to="/login">Sign in</Link>
         </div>
-        © {new Date().getFullYear()} UnCrop It. All rights reserved.
+        © {new Date().getFullYear()} Uncrop it AI: Photo Extender &amp; Resizer. All rights reserved.
       </footer>
     </div>
   );

@@ -3,11 +3,103 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UnCrop It: AI Photo Un-crop & Resizer</title>
+    <meta name="theme-color" content="#0b0b12" />
+
+    <!-- Primary SEO. NOTE: replace https://uncropit.vercel.app with your custom
+         domain when you have one (also in src/lib/seo.ts, public/sitemap.xml,
+         public/robots.txt). -->
+    <title>Uncrop it AI: Photo Extender &amp; Resizer | Expand &amp; uncrop images with AI</title>
     <meta
       name="description"
-      content="UnCrop It extends your photos to any shape with AI and resizes them for every platform."
+      content="Uncrop it AI is a free AI photo extender and image resizer. Uncrop and expand any picture beyond its edges, fill the background with AI, and resize photos for every platform — in your browser or on iPhone."
     />
+    <meta
+      name="keywords"
+      content="uncrop, uncrop image, AI uncrop, photo extender, image extender, pic extender, picture extender, image expander, photo expander, expand image AI, AI outpainting, outpaint, extend photo background, uncrop photo online, image resizer, photo resizer, resize image for instagram, generative expand, AI photo editor, fill image background, uncrop it"
+    />
+    <meta name="author" content="Uncrop it AI" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="application-name" content="Uncrop it AI" />
+    <link rel="canonical" href="https://uncropit.vercel.app/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Uncrop it AI: Photo Extender &amp; Resizer" />
+    <meta property="og:title" content="Uncrop it AI: Photo Extender &amp; Resizer" />
+    <meta
+      property="og:description"
+      content="Free AI photo extender and image resizer. Uncrop and expand any picture beyond its edges, fill the background with AI, and resize for every platform."
+    />
+    <meta property="og:url" content="https://uncropit.vercel.app/" />
+    <meta property="og:image" content="https://uncropit.vercel.app/demo/after.jpg" />
+    <meta property="og:image:alt" content="A photo expanded edge-to-edge with Uncrop it AI" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Uncrop it AI: Photo Extender &amp; Resizer" />
+    <meta
+      name="twitter:description"
+      content="Free AI photo extender and image resizer. Uncrop, expand, and resize any picture with AI."
+    />
+    <meta name="twitter:image" content="https://uncropit.vercel.app/demo/after.jpg" />
+
+    <!-- Structured data: app + FAQ + site -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Uncrop it AI: Photo Extender & Resizer",
+            "alternateName": ["Uncrop it AI", "Photo Extender", "Image Extender", "AI Uncrop"],
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Web, iOS",
+            "url": "https://uncropit.vercel.app/",
+            "image": "https://uncropit.vercel.app/demo/after.jpg",
+            "description": "Free AI photo extender and image resizer. Uncrop and expand any picture beyond its edges, fill the background with AI, and resize photos for every platform.",
+            "offers": [
+              { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD" },
+              { "@type": "Offer", "name": "Pro", "price": "9.99", "priceCurrency": "USD" },
+              { "@type": "Offer", "name": "Studio", "price": "29.99", "priceCurrency": "USD" }
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "name": "Uncrop it AI: Photo Extender & Resizer",
+            "url": "https://uncropit.vercel.app/"
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is Uncrop?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Uncrop is an AI tool that extends your photo beyond its original edges, filling in new background so you can change the shape or aspect ratio without cutting out the subject."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is the AI photo extender free?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Every account gets a few free un-crops and resizes every day. Upgrade to Pro or Studio for monthly credits."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does AI image expanding work?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The AI analyzes the pixels at the edges of your photo and generates a natural continuation of the scene, matching the lighting, color, and detail."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

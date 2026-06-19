@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
+import { useSeo } from "../lib/seo";
 
 const TERMS_URL = "https://www.ndsoft.dev/apps/uncrop-it/terms";
 const PRIVACY_URL = "https://www.ndsoft.dev/apps/uncrop-it/privacy";
@@ -86,10 +87,17 @@ export default function Pricing() {
   const [period, setPeriod] = useState<Period>("yearly");
   const buyHref = user ? "/app/account" : "/signup";
 
+  useSeo({
+    title: "Pricing — Uncrop it AI: Photo Extender & Resizer",
+    description:
+      "Uncrop it AI pricing: free daily un-crops and resizes, or upgrade to Pro and Studio for monthly AI credits, batch editing, and saved history. 1 credit = 1 un-crop or resize.",
+    path: "/pricing",
+  });
+
   return (
     <div>
       <div className="topbar">
-        <Link to="/" className="brand">◈ UnCrop It</Link>
+        <Link to="/" className="brand">◈ Uncrop it AI</Link>
         <div className="row">
           <Link to="/pricing"><button className="ghost">Pricing</button></Link>
           {user ? (
@@ -203,7 +211,7 @@ export default function Pricing() {
           <a href={PRIVACY_URL}>Privacy</a>
           <Link to="/login">Sign in</Link>
         </div>
-        © {new Date().getFullYear()} UnCrop It. All rights reserved.
+        © {new Date().getFullYear()} Uncrop it AI: Photo Extender &amp; Resizer. All rights reserved.
       </footer>
     </div>
   );

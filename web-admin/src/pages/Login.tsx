@@ -44,7 +44,7 @@ export default function Login() {
 
   return (
     <div className="container" style={{ maxWidth: 420, marginTop: 64 }}>
-      <Link to="/" className="brand">◈ UnCrop It</Link>
+      <Link to="/" className="brand">◈ Uncrop it AI</Link>
       <div className="card" style={{ marginTop: 20 }}>
         <h2 style={{ marginTop: 0 }}>Sign in</h2>
         <form onSubmit={submit} className="grid">
