@@ -11,7 +11,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInAnonymously,
   GoogleAuthProvider,
+  OAuthProvider,
   signOut as fbSignOut,
 } from "firebase/auth";
 import { auth } from "./firebase";
@@ -24,6 +26,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
   loginGoogle: () => Promise<void>;
+  loginApple: () => Promise<void>;
+  loginGuest: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -68,12 +72,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginGoogle = async () => {
     await signInWithPopup(auth, new GoogleAuthProvider());
   };
+  const loginApple = async () => {
+    const provider = new OAuthProvider("apple.com");
+    provider.addScope("email");
+    provider.addScope("name");
+    await signInWithPopup(auth, provider);
+  };
+  const loginGuest = async () => {
+    await signInAnonymously(auth);
+  };
   const logout = async () => {
     await fbSignOut(auth);
   };
 
   return (
-    <Ctx.Provider value={{ user, isAdmin, loading, login, signup, loginGoogle, logout }}>
+    <Ctx.Provider
+      value={{ user, isAdmin, loading, login, signup, loginGoogle, loginApple, loginGuest, logout }}
+    >
       {children}
     </Ctx.Provider>
   );

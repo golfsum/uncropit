@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 export default function Login() {
-  const { login, loginGoogle } = useAuth();
+  const { login, loginGoogle, loginApple, loginGuest } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,14 +29,16 @@ export default function Login() {
     }
   }
 
-  async function google() {
+  async function withProvider(fn: () => Promise<void>, label: string) {
     setError("");
     setBusy(true);
     try {
-      await loginGoogle();
+      await fn();
       go();
     } catch (err: any) {
-      setError(err?.message ?? "Google sign-in failed.");
+      if (err?.code !== "auth/popup-closed-by-user" && err?.code !== "auth/cancelled-popup-request") {
+        setError(err?.message ?? `${label} failed.`);
+      }
     } finally {
       setBusy(false);
     }
@@ -53,9 +55,17 @@ export default function Login() {
           {error && <div style={{ color: "var(--danger)", fontSize: 14 }}>{error}</div>}
           <button disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
         </form>
-        <button className="ghost" style={{ marginTop: 10, width: "100%" }} onClick={google} disabled={busy}>
-          Continue with Google
-        </button>
+        <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+          <button className="ghost" style={{ width: "100%" }} onClick={() => withProvider(loginGoogle, "Google sign-in")} disabled={busy}>
+            Continue with Google
+          </button>
+          <button className="ghost" style={{ width: "100%" }} onClick={() => withProvider(loginApple, "Apple sign-in")} disabled={busy}>
+             Continue with Apple
+          </button>
+          <button className="outline" style={{ width: "100%" }} onClick={() => withProvider(loginGuest, "Guest sign-in")} disabled={busy}>
+            Continue as guest
+          </button>
+        </div>
         <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>
           No account? <Link to="/signup">Create one</Link>
         </p>

@@ -11,7 +11,7 @@ const RULES = [
 ];
 
 export default function Signup() {
-  const { signup, loginGoogle } = useAuth();
+  const { signup, loginGoogle, loginApple, loginGuest } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +20,21 @@ export default function Signup() {
 
   const checks = RULES.map((r) => ({ ...r, met: r.test(password) }));
   const valid = checks.every((c) => c.met) && email.includes("@");
+
+  async function withProvider(fn: () => Promise<void>, label: string) {
+    setError("");
+    setBusy(true);
+    try {
+      await fn();
+      nav("/app", { replace: true });
+    } catch (err: any) {
+      if (err?.code !== "auth/popup-closed-by-user" && err?.code !== "auth/cancelled-popup-request") {
+        setError(err?.message ?? `${label} failed.`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,9 +69,17 @@ export default function Signup() {
           {error && <div style={{ color: "var(--danger)", fontSize: 14 }}>{error}</div>}
           <button disabled={busy || !valid}>{busy ? "Creating…" : "Create account"}</button>
         </form>
-        <button className="ghost" style={{ marginTop: 10, width: "100%" }} onClick={() => loginGoogle().then(() => nav("/app"))} disabled={busy}>
-          Continue with Google
-        </button>
+        <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+          <button className="ghost" style={{ width: "100%" }} onClick={() => withProvider(loginGoogle, "Google sign-in")} disabled={busy}>
+            Continue with Google
+          </button>
+          <button className="ghost" style={{ width: "100%" }} onClick={() => withProvider(loginApple, "Apple sign-in")} disabled={busy}>
+             Continue with Apple
+          </button>
+          <button className="outline" style={{ width: "100%" }} onClick={() => withProvider(loginGuest, "Guest sign-in")} disabled={busy}>
+            Continue as guest
+          </button>
+        </div>
         <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>
           Already have an account? <Link to="/login">Sign in</Link>
         </p>
