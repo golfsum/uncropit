@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   LayoutChangeEvent,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,9 +22,10 @@ import { File, Directory, Paths } from "expo-file-system";
 import { captureRef } from "react-native-view-shot";
 import { theme } from "../../src/theme";
 import { ScreenHeader } from "../../src/components/ScreenHeader";
+import { webDownload } from "../../src/lib/download";
 import { PLATFORMS, FILL_PLATFORMS, SizePreset } from "../../src/lib/presets";
 
-type Fit = "fill" | "fit";
+type Fit = "fill" | "fit" | "stretch";
 type Bg = "white" | "black" | "blur";
 type Fmt = "jpg" | "png" | "svg";
 
@@ -170,6 +172,17 @@ export default function ResizeScreen() {
       return out.uri;
     }
 
+    // STRETCH mode: resize the original file to the EXACT target size — no crop,
+    // no bars, the whole image. May distort aspect, but it's sharp (from source).
+    if (fit === "stretch" && uri) {
+      const out = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: target.w, height: target.h } }],
+        { compress: fmt === "jpg" ? 0.95 : 1, format: saveFormat }
+      );
+      return out.uri;
+    }
+
     // FIT mode (background/blur padding) needs compositing → capture the view.
     return captureRef(canvasRef, {
       format: fmt === "png" ? "png" : "jpg",
@@ -188,6 +201,11 @@ export default function ResizeScreen() {
     try {
       setBusy(true);
       const out = await render();
+      // Web: browsers have no Photos/Files — download the file instead.
+      if (Platform.OS === "web") {
+        await webDownload(out, isFavicon ? `favicon.${fmt}` : `uncropit-${target.w}x${target.h}.${fmt}`);
+        return;
+      }
       // Favicons: render() persists favicon.{png,svg} to the app's Documents
       // folder (shows in Files on a release build). To reliably reach it on any
       // runtime, open the share sheet → "Save to Files" to place it anywhere.
@@ -215,6 +233,10 @@ export default function ResizeScreen() {
     try {
       setBusy(true);
       const out = await render();
+      if (Platform.OS === "web") {
+        await webDownload(out, `uncropit-${target.w}x${target.h}.${fmt}`);
+        return;
+      }
       if (await Sharing.isAvailableAsync())
         await Sharing.shareAsync(out, fmt === "svg" || isFavicon ? shareOpts : undefined);
     } catch (e: any) {
@@ -258,7 +280,7 @@ export default function ResizeScreen() {
             <Image
               source={{ uri }}
               style={StyleSheet.absoluteFill}
-              resizeMode={fit === "fill" ? "cover" : "contain"}
+              resizeMode={fit === "fill" ? "cover" : fit === "stretch" ? "stretch" : "contain"}
             />
           </View>
         )}
@@ -335,16 +357,19 @@ export default function ResizeScreen() {
           </ScrollView>
         )}
 
-        {/* Fit + export format */}
-        <View style={styles.optionRow}>
-          <View style={styles.segment}>
-            {(["fit", "fill"] as Fit[]).map((f) => (
-              <Pressable key={f} onPress={() => setFit(f)} style={[styles.segBtn, fit === f && styles.segBtnActive]}>
-                <Text style={[styles.segTxt, fit === f && { color: "#fff" }]}>{f === "fit" ? "Fit" : "Fill"}</Text>
-              </Pressable>
-            ))}
-          </View>
+        {/* Fit / Fill / Stretch */}
+        <View style={styles.fitSegment}>
+          {(["fit", "fill", "stretch"] as Fit[]).map((f) => (
+            <Pressable key={f} onPress={() => setFit(f)} style={[styles.fitBtn, fit === f && styles.segBtnActive]}>
+              <Text style={[styles.segTxt, fit === f && { color: "#fff" }]}>
+                {f === "fit" ? "Fit" : f === "fill" ? "Fill" : "Stretch"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
+        {/* Export format */}
+        <View style={styles.optionRow}>
           <View style={styles.segment}>
             {formats.map((f) => (
               <Pressable key={f} onPress={() => setFormat(f)} style={[styles.segBtn, fmt === f && styles.segBtnActive]}>
@@ -353,6 +378,9 @@ export default function ResizeScreen() {
             ))}
           </View>
         </View>
+        {fit === "stretch" && (
+          <Text style={styles.hint}>Stretch fills the exact size with the whole image (may distort).</Text>
+        )}
         {isAppStore && <Text style={styles.hint}>App Store assets export as PNG.</Text>}
         {isFavicon && (
           <Text style={styles.hint}>
@@ -436,6 +464,8 @@ const styles = StyleSheet.create({
 
   optionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
   segment: { flexDirection: "row", backgroundColor: theme.surfaceAlt, borderRadius: 10, padding: 3 },
+  fitSegment: { flexDirection: "row", backgroundColor: theme.surfaceAlt, borderRadius: 10, padding: 3, marginHorizontal: 16, gap: 3 },
+  fitBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: "center" },
   segBtn: { paddingHorizontal: 18, paddingVertical: 7, borderRadius: 8 },
   segBtnActive: { backgroundColor: theme.primary },
   segDisabled: { opacity: 0.5 },

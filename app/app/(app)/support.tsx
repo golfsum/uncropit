@@ -8,6 +8,8 @@ import {
   RefreshControl,
   Pressable,
 } from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { Button, Card, Body, Subtitle } from "../../src/components/ui";
 import { ScreenHeader } from "../../src/components/ScreenHeader";
 import { theme } from "../../src/theme";
@@ -16,6 +18,7 @@ import { createTicket, listMyTickets, Ticket } from "../../src/lib/api";
 const CATEGORIES = ["Bug", "Billing", "Feature request", "Other"];
 
 export default function SupportScreen() {
+  const router = useRouter();
   const [subject, setSubject] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [message, setMessage] = useState("");
@@ -59,7 +62,18 @@ export default function SupportScreen() {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader subtitle="Get help & track your support tickets." />
+      <ScreenHeader
+        subtitle="Get help & track your support tickets."
+        right={
+          <Pressable
+            onPress={() => (router.canGoBack() ? router.back() : router.replace("/account"))}
+            hitSlop={10}
+            style={styles.closeBtn}
+          >
+            <Ionicons name="close" size={20} color={theme.text} />
+          </Pressable>
+        }
+      />
       <ScrollView
         style={styles.screen}
         contentContainerStyle={styles.container}
@@ -132,6 +146,7 @@ function statusStyle(s: string) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg },
+  closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.surfaceAlt, alignItems: "center", justifyContent: "center" },
   screen: { flex: 1, backgroundColor: theme.bg },
   container: { padding: 20, paddingBottom: 60, flexGrow: 1, backgroundColor: theme.bg },
   label: { marginTop: 14, marginBottom: 6, color: theme.text, fontWeight: "600" },

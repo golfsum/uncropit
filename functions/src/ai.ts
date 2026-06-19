@@ -18,8 +18,8 @@ import { db } from "./admin";
 interface AiInput {
   imageUrl: string; // public/download URL of the user's source image (in Storage)
   prompt?: string;
-  // Uncrop target aspect / padding, in pixels relative to source.
-  expand?: { left?: number; right?: number; top?: number; bottom?: number };
+  // Uncrop target aspect ratio, e.g. "16:9", "1:1", "4:5", "9:16".
+  aspectRatio?: string;
   // Animate: optional per-request driving video URL (overrides the env default).
   drivingVideoUrl?: string;
   template?: string;
@@ -41,6 +41,8 @@ async function runReplicate(model: string, input: Record<string, unknown>): Prom
   if (!model) {
     throw new HttpsError("failed-precondition", "No model configured for this operation.");
   }
+
+  logger.info("Replicate request", { model, input });
 
   // Kick off a prediction against an official model, asking Replicate to wait.
   const res = await fetch(`https://api.replicate.com/v1/models/${model}/predictions`, {
@@ -84,6 +86,7 @@ async function runReplicate(model: string, input: Record<string, unknown>): Prom
 
   const out = prediction.output;
   const url = Array.isArray(out) ? out[out.length - 1] : out;
+  logger.info("Replicate output", { model, rawOutput: out, resultUrl: url });
   if (typeof url !== "string") {
     throw new HttpsError("internal", "Provider returned no output URL.");
   }
@@ -110,19 +113,86 @@ async function recordJob(
   return ref.id;
 }
 
+// Map the app's aspect ratios to Ideogram V3's supported resolution enum.
+const IDEOGRAM_RES: Record<string, string> = {
+  "1:1": "1024x1024",
+  "4:5": "896x1152",
+  "3:2": "1216x832",
+  "16:9": "1344x768",
+  "9:16": "768x1344",
+};
+
+/**
+ * Ideogram V3 Reframe — outpaints a single image to a target resolution with
+ * no mask. Cheapest at rendering_speed=TURBO. The image is sent as a multipart
+ * file upload; the API key goes in the Api-Key header (never in the client).
+ */
+async function runIdeogramReframe(imageUrl: string, resolution: string): Promise<string> {
+  const key = process.env.IDEOGRAM_API_KEY;
+  if (!key) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Ideogram is not configured. Set IDEOGRAM_API_KEY in functions/.env."
+    );
+  }
+
+  const imgRes = await fetch(imageUrl);
+  if (!imgRes.ok) throw new HttpsError("internal", "Could not read the source image.");
+  const bytes = await imgRes.arrayBuffer();
+  const contentType = imgRes.headers.get("content-type") || "image/jpeg";
+
+  const form = new FormData();
+  form.append("image", new Blob([bytes], { type: contentType }), "image.jpg");
+  form.append("resolution", resolution);
+  form.append("rendering_speed", process.env.IDEOGRAM_RENDERING_SPEED || "TURBO");
+
+  logger.info("Ideogram reframe request", { resolution });
+
+  const res = await fetch("https://api.ideogram.ai/v1/ideogram-v3/reframe", {
+    method: "POST",
+    headers: { "Api-Key": key },
+    body: form as any,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    logger.error("Ideogram error", { status: res.status, text });
+    throw new HttpsError("internal", `Ideogram error (${res.status}).`);
+  }
+
+  const data = (await res.json()) as { data?: { url?: string }[] };
+  const url = data?.data?.[0]?.url;
+  logger.info("Ideogram output", { resultUrl: url });
+  if (!url) throw new HttpsError("internal", "Ideogram returned no image URL.");
+  return url;
+}
+
 export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async (request) => {
   const uid = requireAuth(request);
   const input = (request.data ?? {}) as AiInput;
   if (!input.imageUrl) throw new HttpsError("invalid-argument", "imageUrl is required.");
 
+  const provider = (process.env.AI_PROVIDER || "ideogram").toLowerCase();
+  const aspect = input.aspectRatio || process.env.REPLICATE_UNCROP_ASPECT || "16:9";
+
   try {
-    const resultUrl = await runReplicate(process.env.REPLICATE_UNCROP_MODEL || "", {
-      image: input.imageUrl,
-      prompt: input.prompt || "extend the scene naturally, photorealistic, seamless background",
-      // Most outpaint models take a mask; for a turnkey scaffold we pass the
-      // expand hints through and let the chosen model interpret them.
-      ...input.expand,
-    });
+    let resultUrl: string;
+
+    if (provider === "ideogram") {
+      const resolution = IDEOGRAM_RES[aspect] || IDEOGRAM_RES["16:9"];
+      resultUrl = await runIdeogramReframe(input.imageUrl, resolution);
+    } else {
+      // Replicate / bria fallback (set AI_PROVIDER=replicate to use this).
+      const model = process.env.REPLICATE_UNCROP_MODEL || "bria/expand-image";
+      const imageField = process.env.REPLICATE_UNCROP_IMAGE_FIELD || "image_url";
+      const ratioField = process.env.REPLICATE_UNCROP_RATIO_FIELD || "aspect_ratio";
+      resultUrl = await runReplicate(model, {
+        [imageField]: input.imageUrl,
+        [ratioField]: aspect,
+        prompt: input.prompt || "extend the scene naturally with a seamless, photorealistic background",
+      });
+    }
+
     const jobId = await recordJob(uid, "uncrop", input, "succeeded", resultUrl);
     return { ok: true, jobId, resultUrl };
   } catch (e) {

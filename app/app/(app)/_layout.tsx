@@ -1,11 +1,15 @@
 import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../src/lib/auth";
+import { useEntitlement } from "../../src/lib/entitlements";
 import { theme } from "../../src/theme";
 
 export default function AppLayout() {
   const { user, initializing } = useAuth();
+  const { status } = useEntitlement();
   if (!initializing && !user) return <Redirect href="/(auth)/sign-in" />;
+  // After the 3-day trial, require login + a Pro subscription to continue.
+  if (status === "trialExpired") return <Redirect href="/paywall" />;
 
   return (
     <Tabs
@@ -40,14 +44,8 @@ export default function AppLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="crop-outline" size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="support"
-        options={{
-          title: "Support",
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles-outline" size={size} color={color} />,
-        }}
-      />
+      {/* Support is reached from the Account tab, not the tab bar. */}
+      <Tabs.Screen name="support" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
         name="account"
         options={{

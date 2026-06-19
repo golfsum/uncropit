@@ -14,7 +14,7 @@ import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https
 import { auth as authTrigger } from "firebase-functions/v1";
 import { logger } from "firebase-functions/v2";
 import { FieldValue } from "firebase-admin/firestore";
-import { auth, db } from "./admin";
+import { auth, db, storage } from "./admin";
 
 export { aiUncrop, aiAnimate } from "./ai";
 
@@ -220,6 +220,46 @@ export const addTicketReply = onCall(async (request) => {
     lastReplyRole: isAdmin ? "admin" : "user",
     updatedAt: FieldValue.serverTimestamp(),
   });
+
+  return { ok: true };
+});
+
+// ---------------------------------------------------------------------------
+// Account deletion (user-initiated). Removes the user's data everywhere, then
+// the auth account itself. Runs as Admin SDK so it isn't blocked by the
+// "requires recent login" rule a client-side delete would hit.
+// ---------------------------------------------------------------------------
+
+export const deleteMyAccount = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = request.auth.uid;
+
+  // Firestore: profile, tickets (+ their messages), AI job records.
+  await db.collection("users").doc(uid).delete().catch(() => undefined);
+
+  const tickets = await db.collection("tickets").where("uid", "==", uid).get();
+  for (const t of tickets.docs) {
+    await db.recursiveDelete(t.ref).catch(() => undefined);
+  }
+
+  const jobs = await db.collection("jobs").where("uid", "==", uid).get();
+  for (const j of jobs.docs) {
+    await j.ref.delete().catch(() => undefined);
+  }
+
+  // Storage: everything under the user's folder.
+  await storage
+    .bucket()
+    .deleteFiles({ prefix: `users/${uid}/` })
+    .catch(() => undefined);
+
+  await db.doc("stats/global").set(
+    { userCount: FieldValue.increment(-1), updatedAt: FieldValue.serverTimestamp() },
+    { merge: true }
+  );
+
+  // The auth account last (also fires onUserDelete, which is now a no-op).
+  await auth.deleteUser(uid);
 
   return { ok: true };
 });
