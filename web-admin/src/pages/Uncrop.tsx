@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "../lib/auth";
 import { uploadUserImage, uncropImage, getMyUsage } from "../lib/api";
 
 const FREE_LIMIT = 3;
@@ -13,7 +11,6 @@ const ASPECTS = [
 ];
 
 export default function Uncrop() {
-  const { user, logout } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [localUrl, setLocalUrl] = useState<string | null>(null);
@@ -30,6 +27,7 @@ export default function Uncrop() {
 
   const remaining = Math.max(0, FREE_LIMIT - usage.used);
   const busy = stage !== "idle";
+  const limitReached = !usage.pro && remaining <= 0;
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -50,7 +48,6 @@ export default function Uncrop() {
       const out = await uncropImage({ imageUrl, aspectRatio: aspect });
       setResultUrl(out.resultUrl);
     } catch (e: any) {
-      // resource-exhausted = free limit reached (enforced server-side)
       setError(e?.message ?? "Something went wrong. Try again.");
     } finally {
       setStage("idle");
@@ -59,8 +56,7 @@ export default function Uncrop() {
 
   async function download() {
     if (!resultUrl) return;
-    const res = await fetch(resultUrl);
-    const blob = await res.blob();
+    const blob = await (await fetch(resultUrl)).blob();
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "uncropit.jpg";
@@ -68,75 +64,96 @@ export default function Uncrop() {
     URL.revokeObjectURL(a.href);
   }
 
-  const limitReached = !usage.pro && remaining <= 0;
+  async function share() {
+    if (!resultUrl) return;
+    try {
+      const blob = await (await fetch(resultUrl)).blob();
+      const f = new File([blob], "uncropit.jpg", { type: blob.type || "image/jpeg" });
+      const nav = navigator as any;
+      if (nav.canShare && nav.canShare({ files: [f] })) {
+        await nav.share({ files: [f], title: "UnCrop It" });
+        return;
+      }
+    } catch {
+      /* fall through to download */
+    }
+    download();
+  }
+
+  const ctaLabel =
+    stage === "uploading" ? "Uploading…"
+    : stage === "processing" ? "Un-cropping…"
+    : resultUrl ? "Un-crop again"
+    : "Un-crop photo";
 
   return (
-    <div>
-      <div className="topbar">
-        <Link to="/" className="brand">◈ UnCrop It</Link>
-        <div className="row">
-          <span className="muted">{usage.pro ? "Pro" : `${remaining} free left`}</span>
-          <span className="muted">{user?.email}</span>
-          <button className="outline" onClick={logout}>Sign out</button>
+    <>
+      <main className="app-main">
+        <div className="app-head">
+          <h2>Un-crop a photo</h2>
+          <button className="ghost" onClick={() => fileRef.current?.click()} disabled={busy}>
+            {localUrl ? "Change photo" : "Choose photo"}
+          </button>
         </div>
-      </div>
 
-      <div className="container" style={{ maxWidth: 760 }}>
-        <h2>Un-crop a photo</h2>
-        <p className="muted">Extend any photo to a new shape with AI. Pick a target ratio and go.</p>
+        <div className="app-canvas">
+          {!localUrl ? (
+            <button className="app-empty" onClick={() => fileRef.current?.click()}>
+              <span className="app-empty-icon">＋</span>
+              <span>Choose a photo to un-crop</span>
+            </button>
+          ) : (
+            <>
+              <img className="app-img" src={resultUrl ?? localUrl} alt="preview" />
+              {resultUrl && <span className="app-badge">✨ Result</span>}
+              {busy && (
+                <div className="app-overlay">
+                  <div className="spinner" />
+                  <span>{stage === "uploading" ? "Uploading…" : "AI is working its magic…"}</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         {limitReached && (
-          <div className="card" style={{ borderColor: "var(--primary)", marginBottom: 16 }}>
-            <strong>You've used all {FREE_LIMIT} free un-crops.</strong>
-            <p className="muted" style={{ margin: "6px 0 0" }}>
-              Upgrade to Pro for unlimited un-cropping. (Subscription coming soon.)
-            </p>
+          <div className="app-note">
+            You've used all {FREE_LIMIT} free un-crops. Upgrade to Pro for unlimited use. (Coming soon.)
           </div>
         )}
 
-        <div className="card">
-          {!localUrl ? (
-            <button onClick={() => fileRef.current?.click()}>Choose a photo</button>
-          ) : (
-            <>
-              <img
-                src={resultUrl ?? localUrl}
-                alt="preview"
-                style={{ width: "100%", borderRadius: 12, background: "var(--surface-alt)" }}
-              />
-              <div className="row" style={{ flexWrap: "wrap", gap: 8, marginTop: 14 }}>
-                {ASPECTS.map((a) => (
-                  <button
-                    key={a.id}
-                    className={aspect === a.id ? "" : "ghost"}
-                    onClick={() => setAspect(a.id)}
-                  >
-                    {a.id}
-                  </button>
-                ))}
-              </div>
+        <div className="app-controls">
+          <div className="ratio-label">Expand to</div>
+          <div className="ratios">
+            {ASPECTS.map((a) => (
+              <button
+                key={a.id}
+                className={`ratio-chip ${aspect === a.id ? "on" : ""}`}
+                onClick={() => setAspect(a.id)}
+                disabled={busy}
+              >
+                <b>{a.id}</b>
+                <small>{a.label}</small>
+              </button>
+            ))}
+          </div>
 
-              <div className="row" style={{ marginTop: 14, gap: 10 }}>
-                <button className="ghost" onClick={() => fileRef.current?.click()} disabled={busy}>
-                  Change photo
-                </button>
-                <button onClick={run} disabled={busy || limitReached}>
-                  {stage === "uploading" ? "Uploading…" : stage === "processing" ? "Un-cropping…" : "Un-crop"}
-                </button>
-                {resultUrl && (
-                  <button className="ghost" onClick={download}>
-                    Download
-                  </button>
-                )}
-              </div>
-            </>
+          <button className="app-cta" onClick={run} disabled={!file || busy || limitReached}>
+            {ctaLabel}
+          </button>
+
+          {resultUrl && !busy && (
+            <div className="app-actions">
+              <button className="ghost" onClick={share}>Share</button>
+              <button className="accent" onClick={download}>Download</button>
+            </div>
           )}
 
-          {error && <p style={{ color: "var(--danger)", marginTop: 12 }}>{error}</p>}
+          {error && <div className="app-error">{error}</div>}
         </div>
+      </main>
 
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPick} />
-      </div>
-    </div>
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPick} />
+    </>
   );
 }

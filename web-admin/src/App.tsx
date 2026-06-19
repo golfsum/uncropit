@@ -3,7 +3,10 @@ import { useAuth } from "./lib/auth";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import AppLayout from "./pages/AppLayout";
 import Uncrop from "./pages/Uncrop";
+import Resize from "./pages/Resize";
+import Account from "./pages/Account";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
 import Users from "./pages/admin/Users";
@@ -31,15 +34,19 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
 
-      {/* The app - un-crop, requires any signed-in account */}
+      {/* The app - un-crop, resize, account. Requires any signed-in account. */}
       <Route
         path="/app"
         element={
           <RequireAuth>
-            <Uncrop />
+            <AppLayout />
           </RequireAuth>
         }
-      />
+      >
+        <Route index element={<Uncrop />} />
+        <Route path="resize" element={<Resize />} />
+        <Route path="account" element={<Account />} />
+      </Route>
 
       {/* Admin dashboard - requires the admin custom claim */}
       <Route

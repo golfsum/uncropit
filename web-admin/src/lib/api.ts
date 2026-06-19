@@ -6,6 +6,8 @@ import {
   getDocs,
   doc,
   getDoc,
+  addDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { functions, db, storage, auth } from "./firebase";
@@ -41,6 +43,33 @@ export async function getMyUsage(): Promise<{ used: number; pro: boolean }> {
   const snap = await getDoc(doc(db, "users", uid));
   const d = snap.data() || {};
   return { used: d.uncropsUsed || 0, pro: d.pro === true || d.role === "admin" };
+}
+
+/** Permanently delete the signed-in user's account, data, and uploads. */
+export async function deleteAccount(): Promise<void> {
+  await call("deleteMyAccount")({});
+}
+
+/** Submit a support ticket (visible in the admin dashboard). */
+export async function createTicket(input: { subject: string; category: string; message: string }): Promise<void> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Sign in to contact support.");
+  const ticket = await addDoc(collection(db, "tickets"), {
+    uid,
+    email: auth.currentUser?.email ?? null,
+    subject: input.subject.slice(0, 200),
+    category: input.category,
+    status: "open",
+    lastReplyRole: "user",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  await addDoc(collection(db, "tickets", ticket.id, "messages"), {
+    body: input.message.slice(0, 4000),
+    authorUid: uid,
+    authorRole: "user",
+    createdAt: serverTimestamp(),
+  });
 }
 
 export interface AdminUser {
