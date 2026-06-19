@@ -1,27 +1,30 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 const TERMS_URL = "https://www.ndsoft.dev/apps/uncrop-it/terms";
 const PRIVACY_URL = "https://www.ndsoft.dev/apps/uncrop-it/privacy";
 
-// Same photo in the same widescreen frame: resized (letterbox bars) vs run
-// through our aiUncrop (Ideogram V3 Reframe), which fills the frame edge to edge.
-function Compare({ src, expanded }: { src: string; expanded: string }) {
+// One frame that rotates: the original photo resized (letterbox bars) cross-
+// fades to the same photo run through aiUncrop (Ideogram V3 Reframe), which
+// fills the frame edge to edge. Loops so visitors see the before and after.
+function RotatingDemo({ src, expanded }: { src: string; expanded: string }) {
+  const [after, setAfter] = useState(false);
+  useEffect(() => {
+    const id = setInterval(() => setAfter((a) => !a), 2600);
+    return () => clearInterval(id);
+  }, []);
   return (
-    <div className="compare">
-      <figure className="cmp">
-        <div className="cmp-frame bars">
-          <img src={src} alt="resized with bars" loading="lazy" />
-        </div>
-        <figcaption>Just resized: black bars</figcaption>
-      </figure>
-      <figure className="cmp win">
-        <div className="cmp-frame">
-          <img src={expanded} alt="AI un-cropped, no bars" loading="lazy" />
-        </div>
-        <figcaption>UnCrop It: no bars, AI fills the edges</figcaption>
-      </figure>
-    </div>
+    <figure className="rotdemo">
+      <div className="cmp-frame">
+        <img src={src} alt="original with bars" className={`rot-img bars ${after ? "rot-hide" : ""}`} />
+        <img src={expanded} alt="AI un-cropped" className={`rot-img ${after ? "" : "rot-hide"}`} />
+        <span className={`rot-tag ${after ? "ai" : ""}`}>
+          {after ? "UnCrop It: no bars" : "Original: black bars"}
+        </span>
+      </div>
+      <figcaption>Same photo, resized vs AI un-cropped.</figcaption>
+    </figure>
   );
 }
 
@@ -98,7 +101,7 @@ export default function Landing() {
             <Link to={startHref}><button className="btn-lg">Upload image</button></Link>
           </div>
           <div style={{ marginTop: 36 }}>
-            <Compare src="/demo/before.jpg" expanded="/demo/after.jpg" />
+            <RotatingDemo src="/demo/before.jpg" expanded="/demo/after.jpg" />
           </div>
         </section>
 
