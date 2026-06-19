@@ -37,7 +37,7 @@ export async function uncropImage(params: {
   aspectRatio?: string;
   fileName?: string;
 }): Promise<AiResult> {
-  const res = await call<AiResult>("aiUncrop")(params);
+  const res = await call<AiResult>("aiUncrop")({ ...params, platform: "web" });
   return res.data;
 }
 
@@ -113,15 +113,41 @@ export interface AdminUser {
   admin: boolean;
   createdAt: string;
   lastSignInAt: string;
+  // Plan / usage / platform (from the Firestore profile).
+  pro: boolean;
+  uncropsUsed: number;
+  platforms: Record<string, boolean>; // { web: true, ios: true }
+  lastPlatform: string | null;
 }
 
 export const listUsers = (pageToken?: string) =>
-  call<{ users: AdminUser[]; nextPageToken: string | null }>("adminListUsers")({ pageToken, max: 200 }).then(
-    (r) => r.data
-  );
+  call<{ users: AdminUser[]; freeLimit: number; nextPageToken: string | null }>("adminListUsers")({
+    pageToken,
+    max: 200,
+  }).then((r) => r.data);
 
 export const setDisabled = (uid: string, disabled: boolean) =>
   call("adminSetDisabled")({ uid, disabled }).then((r) => r.data);
+
+/** Permanently delete a user (auth account + all their data). Admin-only. */
+export const deleteUser = (uid: string) =>
+  call("adminDeleteUser")({ uid }).then((r) => r.data);
+
+export interface AdminJob {
+  id: string;
+  type: string | null;
+  fileName: string | null;
+  aspectRatio: string | null;
+  status: string | null;
+  platform: string | null;
+  expired: boolean;
+  hadImage: boolean;
+  createdAt: string | null;
+}
+
+/** A user's AI history as metadata only (no images). Admin-only. */
+export const listUserJobs = (uid: string) =>
+  call<{ jobs: AdminJob[] }>("adminListUserJobs")({ uid, max: 200 }).then((r) => r.data.jobs);
 
 export const setAdmin = (uid: string, admin: boolean) =>
   call("setAdminClaim")({ uid, admin }).then((r) => r.data);

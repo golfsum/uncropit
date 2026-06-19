@@ -144,21 +144,41 @@ export const adminListUsers = onCall(async (request) => {
   const { pageToken, max } = request.data ?? {};
   const result = await auth.listUsers(Math.min(max ?? 100, 1000), pageToken || undefined);
 
-  const users = result.users.map((u) => ({
-    uid: u.uid,
-    email: u.email ?? null,
-    displayName: u.displayName ?? null,
-    photoURL: u.photoURL ?? null,
-    disabled: u.disabled,
-    emailVerified: u.emailVerified,
-    isAnonymous: u.providerData.length === 0,
-    providers: u.providerData.map((p) => p.providerId),
-    admin: u.customClaims?.admin === true,
-    createdAt: u.metadata.creationTime,
-    lastSignInAt: u.metadata.lastSignInTime,
-  }));
+  // Pull each user's Firestore profile for plan / usage / platform insight.
+  const profileSnaps = await Promise.all(
+    result.users.map((u) => db.collection("users").doc(u.uid).get().catch(() => null))
+  );
+  const profileByUid: Record<string, FirebaseFirestore.DocumentData> = {};
+  profileSnaps.forEach((s) => {
+    if (s && s.exists) profileByUid[s.id] = s.data() as FirebaseFirestore.DocumentData;
+  });
 
-  return { users, nextPageToken: result.pageToken ?? null };
+  const freeLimit = parseInt(process.env.FREE_UNCROPS || "3", 10);
+
+  const users = result.users.map((u) => {
+    const p = profileByUid[u.uid] || {};
+    const isAdmin = u.customClaims?.admin === true;
+    return {
+      uid: u.uid,
+      email: u.email ?? null,
+      displayName: u.displayName ?? null,
+      photoURL: u.photoURL ?? null,
+      disabled: u.disabled,
+      emailVerified: u.emailVerified,
+      isAnonymous: u.providerData.length === 0,
+      providers: u.providerData.map((pr) => pr.providerId),
+      admin: isAdmin,
+      createdAt: u.metadata.creationTime,
+      lastSignInAt: u.metadata.lastSignInTime,
+      // Firestore profile fields:
+      pro: p.pro === true || p.role === "admin" || isAdmin,
+      uncropsUsed: p.uncropsUsed || 0,
+      platforms: p.platforms || {}, // { web: true, ios: true }
+      lastPlatform: p.lastPlatform ?? null,
+    };
+  });
+
+  return { users, freeLimit, nextPageToken: result.pageToken ?? null };
 });
 
 /** Enable / disable a user account. */
@@ -169,6 +189,71 @@ export const adminSetDisabled = onCall(async (request) => {
   await auth.updateUser(uid, { disabled: disabled === true });
   await db.collection("users").doc(uid).set({ disabled: disabled === true }, { merge: true });
   return { ok: true };
+});
+
+/**
+ * Admin: permanently delete a user — auth account, profile, AI history, tickets,
+ * and all stored images. (onUserDelete keeps the global user count in sync.)
+ */
+export const adminDeleteUser = onCall(async (request) => {
+  const callerUid = assertAdmin(request);
+  const { uid } = request.data ?? {};
+  if (!uid) throw new HttpsError("invalid-argument", "uid is required.");
+  if (uid === callerUid) {
+    throw new HttpsError("failed-precondition", "You cannot delete your own account from here.");
+  }
+
+  // Firestore: profile, tickets (+ messages), AI job records.
+  await db.collection("users").doc(uid).delete().catch(() => undefined);
+
+  const tickets = await db.collection("tickets").where("uid", "==", uid).get();
+  for (const t of tickets.docs) await db.recursiveDelete(t.ref).catch(() => undefined);
+
+  const jobs = await db.collection("jobs").where("uid", "==", uid).get();
+  for (const j of jobs.docs) await j.ref.delete().catch(() => undefined);
+
+  // Storage: everything under the user's folder.
+  await storage.bucket().deleteFiles({ prefix: `users/${uid}/` }).catch(() => undefined);
+
+  // The auth account last (fires onUserDelete, which decrements the user count).
+  await auth.deleteUser(uid).catch((e) => {
+    logger.error("adminDeleteUser: auth delete failed", e);
+    throw new HttpsError("internal", "Could not delete the auth account.");
+  });
+
+  return { ok: true };
+});
+
+/**
+ * Admin: a single user's AI history as metadata only (no image URLs) — e.g.
+ * "Un-cropped test.jpg". Used by the dashboard's per-user history view.
+ */
+export const adminListUserJobs = onCall(async (request) => {
+  assertAdmin(request);
+  const { uid, max } = request.data ?? {};
+  if (!uid) throw new HttpsError("invalid-argument", "uid is required.");
+  const snap = await db
+    .collection("jobs")
+    .where("uid", "==", uid)
+    .orderBy("createdAt", "desc")
+    .limit(Math.min(max ?? 100, 500))
+    .get();
+  const jobs = snap.docs.map((d) => {
+    const j = d.data();
+    const ts = j.createdAt as Timestamp | undefined;
+    return {
+      id: d.id,
+      type: j.type ?? null,
+      fileName: j.fileName ?? null,
+      aspectRatio: j.aspectRatio ?? null,
+      status: j.status ?? null,
+      platform: j.platform ?? null,
+      expired: j.expired === true,
+      hadImage: j.resultUrl != null || j.expired === true,
+      createdAt: ts && typeof ts.toDate === "function" ? ts.toDate().toISOString() : null,
+    };
+  });
+  return { jobs };
 });
 
 /** Generate a password-reset link for a user with an email/password account. */

@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { httpsCallable } from "firebase/functions";
 import {
   addDoc,
@@ -72,7 +73,7 @@ export async function uncropImage(params: {
   aspectRatio?: string; // e.g. "16:9", "1:1", "4:5", "9:16"
   fileName?: string;
 }): Promise<AiResult> {
-  const res = await _uncrop(params);
+  const res = await _uncrop({ ...params, platform: Platform.OS });
   return res.data as AiResult;
 }
 

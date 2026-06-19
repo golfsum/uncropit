@@ -48,6 +48,8 @@ interface AiInput {
   aspectRatio?: string;
   // Original file name, kept for the history label ("Un-cropped photo.jpg").
   fileName?: string;
+  // Where the request came from: "web" | "ios" | "android" (for admin insight).
+  platform?: string;
   // Animate: optional per-request driving video URL (overrides the env default).
   drivingVideoUrl?: string;
   template?: string;
@@ -134,6 +136,7 @@ async function recordJob(
     type,
     fileName: input.fileName ?? null,
     aspectRatio: input.aspectRatio ?? null,
+    platform: input.platform ?? null,
     status,
     resultUrl: resultUrl ?? null,
     expired: false, // set true by the 30-day cleanup once the image is deleted
@@ -209,6 +212,22 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
   // The count lives on the user's account, checked + reserved atomically here.
   const FREE_LIMIT = parseInt(process.env.FREE_UNCROPS || "3", 10);
   const userRef = db.collection("users").doc(uid);
+
+  // Track which platform(s) this account is active on, for the admin dashboard.
+  const platform = typeof input.platform === "string" ? input.platform : null;
+  if (platform) {
+    await userRef
+      .set(
+        {
+          lastPlatform: platform,
+          platforms: { [platform]: true },
+          lastActiveAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      )
+      .catch(() => undefined);
+  }
+
   let isPro = false;
   const reserved = await db.runTransaction(async (tx) => {
     const u = (await tx.get(userRef)).data() || {};
