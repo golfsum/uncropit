@@ -22,7 +22,7 @@ import { theme } from "../../src/theme";
 
 const ASPECTS = ["1:1", "4:5", "3:2", "16:9", "9:16"];
 
-type Status = "pending" | "processing" | "done" | "error";
+type Status = "pending" | "processing" | "done" | "error" | "skipped";
 interface Item {
   uri: string;
   fileName: string;
@@ -33,7 +33,7 @@ interface Item {
 
 export default function BatchScreen() {
   const router = useRouter();
-  const { plan } = useEntitlement();
+  const { plan, credits } = useEntitlement();
   const isStudio = plan === "studio" || plan === "admin";
 
   const [aspect, setAspect] = useState("16:9");
@@ -68,16 +68,50 @@ export default function BatchScreen() {
 
   async function run() {
     if (!items.length || running) return;
+
+    // Pre-flight credit check (admins are unlimited). Only process what the user
+    // can afford; confirm before skipping the overflow.
+    const unlimited = plan === "admin";
+    const remaining = credits ?? 0;
+    const pending = items.filter((i) => i.status !== "done").length;
+    let toProcess = items.length;
+
+    if (!unlimited) {
+      if (remaining <= 0) {
+        setLimit({ open: true, reason: "OUT_OF_CREDITS" });
+        return;
+      }
+      if (pending > remaining) {
+        const ok = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Not enough credits",
+            `You have ${remaining} credit${remaining === 1 ? "" : "s"} left but ${pending} photo${
+              pending === 1 ? " is" : "s are"
+            } queued.\n\nProcess the first ${remaining} now? The rest will be skipped.`,
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: `Process ${remaining}`, onPress: () => resolve(true) },
+            ]
+          );
+        });
+        if (!ok) return;
+        toProcess = remaining;
+      }
+    }
+
     setRunning(true);
+    let processed = 0;
     // Snapshot the list length; process sequentially.
     for (let i = 0; i < items.length; i++) {
-      setItems((prev) => {
-        if (prev[i].status === "done") return prev;
-        return prev.map((it, idx) => (idx === i ? { ...it, status: "processing", error: undefined } : it));
-      });
+      if (items[i].status === "done") continue;
+      if (!unlimited && processed >= toProcess) {
+        update(i, { status: "skipped", error: "Skipped — out of credits" });
+        continue;
+      }
+      processed++;
+      update(i, { status: "processing", error: undefined });
       try {
         const current = items[i];
-        if (current.status === "done") continue;
         const imageUrl = await uploadUserImage(current.uri);
         const out = await uncropImage({ imageUrl, aspectRatio: aspect, fileName: current.fileName });
         update(i, { status: "done", resultUrl: out.resultUrl });
@@ -116,6 +150,7 @@ export default function BatchScreen() {
   }
 
   const doneCount = items.filter((i) => i.status === "done").length;
+  const pendingCount = items.filter((i) => i.status !== "done").length;
 
   // --- Upsell for non-Studio users ---
   if (!isStudio) {
@@ -182,7 +217,7 @@ export default function BatchScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.ctaTxt}>
-                  Un-crop all ({items.length} credit{items.length === 1 ? "" : "s"})
+                  Un-crop all ({pendingCount} credit{pendingCount === 1 ? "" : "s"})
                 </Text>
               )}
             </Pressable>
@@ -209,6 +244,7 @@ export default function BatchScreen() {
                     {it.status === "pending" && "Ready"}
                     {it.status === "processing" && "Processing…"}
                     {it.status === "done" && "Done ✓"}
+                    {it.status === "skipped" && "Skipped"}
                     {it.status === "error" && (it.error || "Failed")}
                   </Text>
                 </View>

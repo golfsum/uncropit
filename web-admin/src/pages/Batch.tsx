@@ -11,7 +11,7 @@ const ASPECTS = [
   { id: "9:16", label: "Tall" },
 ];
 
-type Status = "pending" | "processing" | "done" | "error";
+type Status = "pending" | "processing" | "done" | "error" | "skipped";
 interface Item {
   file: File;
   localUrl: string;
@@ -49,9 +49,41 @@ export default function Batch() {
 
   async function run() {
     if (!items.length || running) return;
+
+    // Pre-flight credit check (admins are unlimited). Re-read usage so the count
+    // is fresh, then only process what the user can afford.
+    const fresh = await getMyUsage();
+    setUsage(fresh);
+    const unlimited = fresh.plan === "admin";
+    const remaining = fresh.credits ?? 0;
+    const pending = items.filter((i) => i.status !== "done").length;
+    let toProcess = items.length;
+
+    if (!unlimited) {
+      if (remaining <= 0) {
+        setLimitModal(true);
+        return;
+      }
+      if (pending > remaining) {
+        const ok = window.confirm(
+          `You have ${remaining} credit${remaining === 1 ? "" : "s"} left but ${pending} photo${
+            pending === 1 ? " is" : "s are"
+          } queued.\n\nProcess the first ${remaining} now? The rest will be skipped.`
+        );
+        if (!ok) return;
+        toProcess = remaining;
+      }
+    }
+
     setRunning(true);
+    let processed = 0;
     for (let i = 0; i < items.length; i++) {
       if (items[i].status === "done") continue;
+      if (!unlimited && processed >= toProcess) {
+        update(i, { status: "skipped", error: "Skipped — out of credits" });
+        continue;
+      }
+      processed++;
       update(i, { status: "processing", error: undefined });
       try {
         const imageUrl = await uploadUserImage(items[i].file);
@@ -87,6 +119,7 @@ export default function Batch() {
   }
 
   const doneCount = items.filter((i) => i.status === "done").length;
+  const pendingCount = items.filter((i) => i.status !== "done").length;
 
   // --- Upsell for non-Studio users ---
   if (!isStudio) {
@@ -144,7 +177,7 @@ export default function Batch() {
           <button className="app-cta" onClick={run} disabled={running || doneCount === items.length}>
             {running
               ? `Processing ${items.filter((i) => i.status === "done").length + 1} of ${items.length}…`
-              : `Un-crop all (${items.length} credit${items.length === 1 ? "" : "s"})`}
+              : `Un-crop all (${pendingCount} credit${pendingCount === 1 ? "" : "s"})`}
           </button>
 
           {doneCount > 0 && !running && (
@@ -161,6 +194,7 @@ export default function Batch() {
                   {it.status === "pending" && "Ready"}
                   {it.status === "processing" && "Processing…"}
                   {it.status === "done" && "Done ✓"}
+                  {it.status === "skipped" && (it.error || "Skipped")}
                   {it.status === "error" && (it.error || "Failed")}
                 </div>
                 {it.status === "done" && (
