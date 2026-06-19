@@ -70,6 +70,7 @@ export default function Landing() {
       <div className="topbar">
         <span className="brand">◈ UnCrop It</span>
         <div className="row">
+          <Link to="/pricing"><button className="ghost">Pricing</button></Link>
           {user ? (
             <Link to="/app"><button>Open app</button></Link>
           ) : (
@@ -132,8 +133,20 @@ export default function Landing() {
           </div>
         ))}
 
+        {/* Pricing teaser */}
+        <h2 className="section-title">Plans for every creator</h2>
+        <p className="section-sub">Free every day. Upgrade for monthly credits, faster processing, and batch tools.</p>
+        <div className="price-teaser">
+          <div className="pt-card"><strong>Free</strong><span>3 un-crops / day</span><em>$0</em></div>
+          <div className="pt-card featured"><strong>Pro</strong><span>100 credits / mo</span><em>$9.99/mo</em></div>
+          <div className="pt-card"><strong>Studio</strong><span>300 credits / mo</span><em>$29.99/mo</em></div>
+        </div>
+        <div style={{ textAlign: "center", marginTop: 18 }}>
+          <Link to="/pricing"><button className="btn-lg">See full pricing</button></Link>
+        </div>
+
         {/* FAQ */}
-        <h2 className="section-title">Frequently asked questions</h2>
+        <h2 className="section-title" style={{ marginTop: 56 }}>Frequently asked questions</h2>
         <div className="faq" style={{ marginTop: 20 }}>
           {FAQ.map((item) => (
             <details key={item.q}>

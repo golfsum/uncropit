@@ -181,7 +181,7 @@ export default function Uncrop() {
         onClose={() => setLimitModal((m) => ({ ...m, open: false }))}
         onUpgrade={() => {
           setLimitModal((m) => ({ ...m, open: false }));
-          navigate("/app/account");
+          navigate("/pricing");
         }}
       />
     </>

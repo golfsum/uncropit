@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import Landing from "./pages/Landing";
+import Pricing from "./pages/Pricing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AppLayout from "./pages/AppLayout";
@@ -32,6 +33,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/pricing" element={<Pricing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
 

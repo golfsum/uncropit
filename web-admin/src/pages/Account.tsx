@@ -98,11 +98,8 @@ export default function Account() {
             : `${remaining} of 3 free un-crops left today.`}
         </p>
         {!paid && usage.plan !== "admin" && (
-          <button
-            style={{ marginTop: 12 }}
-            onClick={() => alert("Subscribe in the iOS app. Web subscriptions are coming soon.")}
-          >
-            Upgrade
+          <button style={{ marginTop: 12 }} onClick={() => nav("/pricing")}>
+            See plans
           </button>
         )}
       </div>
