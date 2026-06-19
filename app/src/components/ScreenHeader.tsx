@@ -12,18 +12,16 @@ const LOGO = require("../../assets/icon.png");
 export const APP_TITLE = "Uncrop it AI: Photo Extender & Resizer";
 
 /** Compact, tappable usage pill — credits for subscribers, free-left otherwise. */
-function UsagePill() {
+function UsagePill({ kind }: { kind: "uncrop" | "resize" }) {
   const router = useRouter();
-  const { plan, isPaid, credits, freeRemaining } = useEntitlement();
+  const { plan, isPaid, credits, freeRemaining, resizeRemaining } = useEntitlement();
 
+  const freeLeft = kind === "resize" ? resizeRemaining : freeRemaining;
+  const freeLabel = kind === "resize" ? `${freeLeft} resizes today` : `${freeLeft} free today`;
   const label =
-    plan === "admin"
-      ? "Admin"
-      : isPaid
-      ? `${credits ?? 0} credits`
-      : `${freeRemaining} free today`;
+    plan === "admin" ? "Admin" : isPaid ? `${credits ?? 0} credits` : freeLabel;
 
-  const low = (isPaid && (credits ?? 0) <= 5) || (!isPaid && freeRemaining <= 0);
+  const low = (isPaid && (credits ?? 0) <= 5) || (!isPaid && freeLeft <= 0);
 
   return (
     <Pressable
@@ -45,10 +43,12 @@ export function ScreenHeader({
   subtitle,
   right,
   showUsage = true,
+  usageKind = "uncrop",
 }: {
   subtitle?: string;
   right?: React.ReactNode;
   showUsage?: boolean;
+  usageKind?: "uncrop" | "resize";
 }) {
   const insets = useSafeAreaInsets();
   return (
@@ -58,7 +58,7 @@ export function ScreenHeader({
         <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
           {APP_TITLE}
         </Text>
-        {showUsage && <UsagePill />}
+        {showUsage && <UsagePill kind={usageKind} />}
       </View>
       {(subtitle || right) && (
         <View style={styles.row}>

@@ -22,7 +22,7 @@ export default function Uncrop() {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [error, setError] = useState("");
-  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0 });
+  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0, resizeUsedToday: 0 });
   const [limitModal, setLimitModal] = useState<{
     open: boolean;
     reason: "OUT_OF_FREE_DAILY" | "OUT_OF_CREDITS" | "GENERIC";

@@ -16,6 +16,8 @@ import { syncSubscription } from "./api";
 
 /** Free un-crops per day (mirrors functions/src/plans.ts FREE_DAILY). */
 export const FREE_DAILY = 3;
+/** Free resize exports per day (mirrors functions/src/plans.ts RESIZE_FREE_DAILY). */
+export const RESIZE_FREE_DAILY = 3;
 
 export type Plan = "free" | "pro" | "studio" | "admin";
 export type AccessStatus = "loading" | Plan;
@@ -27,6 +29,8 @@ interface EntitlementState {
   credits: number | null; // remaining monthly credits (paid tiers)
   freeUsedToday: number;
   freeRemaining: number;
+  resizeUsedToday: number;
+  resizeRemaining: number;
   refresh: () => Promise<void>;
 }
 
@@ -41,6 +45,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   const [plan, setPlan] = useState<Plan>("free");
   const [credits, setCredits] = useState<number | null>(null);
   const [freeUsedToday, setFreeUsedToday] = useState(0);
+  const [resizeUsedToday, setResizeUsedToday] = useState(0);
   const [ready, setReady] = useState(false);
   const syncedFor = useRef<string | null>(null);
 
@@ -81,6 +86,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       setPlan("free");
       setCredits(null);
       setFreeUsedToday(0);
+      setResizeUsedToday(0);
       return;
     }
     const unsub = onSnapshot(
@@ -89,9 +95,11 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
         const d = snap.data() || {};
         const p: Plan =
           d.role === "admin" ? "admin" : d.plan === "pro" || d.plan === "studio" ? d.plan : "free";
+        const today = todayKey();
         setPlan(p);
         setCredits(p === "pro" || p === "studio" ? d.credits ?? 0 : null);
-        setFreeUsedToday(d.freeDate === todayKey() ? d.freeUsed ?? 0 : 0);
+        setFreeUsedToday(d.freeDate === today ? d.freeUsed ?? 0 : 0);
+        setResizeUsedToday(d.resizeFreeDate === today ? d.resizeFreeUsed ?? 0 : 0);
         setReady(true);
       },
       () => setReady(true)
@@ -101,6 +109,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
 
   const isPaid = plan === "pro" || plan === "studio";
   const freeRemaining = Math.max(0, FREE_DAILY - freeUsedToday);
+  const resizeRemaining = Math.max(0, RESIZE_FREE_DAILY - resizeUsedToday);
 
   const status: AccessStatus = useMemo(() => {
     if (!ready) return "loading";
@@ -108,8 +117,8 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   }, [ready, plan]);
 
   const value = useMemo<EntitlementState>(
-    () => ({ status, plan, isPaid, credits, freeUsedToday, freeRemaining, refresh }),
-    [status, plan, isPaid, credits, freeUsedToday, freeRemaining, refresh]
+    () => ({ status, plan, isPaid, credits, freeUsedToday, freeRemaining, resizeUsedToday, resizeRemaining, refresh }),
+    [status, plan, isPaid, credits, freeUsedToday, freeRemaining, resizeUsedToday, resizeRemaining, refresh]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

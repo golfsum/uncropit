@@ -16,6 +16,10 @@ function num(v: string | undefined, fallback: number): number {
 /** Free un-crops per rolling day (UTC), enforced per account AND per device. */
 export const FREE_DAILY = num(process.env.FREE_DAILY, 3);
 
+/** Free resize exports per rolling day (UTC). Resize is local (no AI cost) but
+ *  metered like un-crop: free users get a few/day, paid users spend 1 credit. */
+export const RESIZE_FREE_DAILY = num(process.env.RESIZE_FREE_DAILY, 3);
+
 /** Monthly credit allotments for the paid tiers (1 credit = 1 un-crop). */
 export const PLAN_CREDITS: Record<PlanId, number> = {
   free: 0,

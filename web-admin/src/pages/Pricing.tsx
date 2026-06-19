@@ -16,7 +16,12 @@ const TIERS = [
     yearly: 0,
     cta: "Start free",
     highlight: false,
-    features: ["3 un-crops every day", "HD downloads, no watermark", "Works in browser + iPhone app"],
+    features: [
+      "3 un-crops every day",
+      "3 resizes every day",
+      "HD downloads, no watermark",
+      "Works in browser + iPhone app",
+    ],
   },
   {
     id: "pro",
@@ -27,7 +32,7 @@ const TIERS = [
     cta: "Get Pro",
     highlight: true,
     features: [
-      "100 credits per month",
+      "100 credits / mo (un-crops + resizes)",
       "Fast TURBO processing",
       "No watermarks",
       "Saved history (30 days)",
@@ -43,7 +48,7 @@ const TIERS = [
     cta: "Get Studio",
     highlight: false,
     features: [
-      "300 credits per month",
+      "300 credits / mo (un-crops + resizes)",
       "Everything in Pro",
       "Batch editing (multi-image)",
       "Early access to new features",
@@ -54,6 +59,7 @@ const TIERS = [
 // Full breakdown. Values are either text or a boolean (✓ / —).
 const COMPARE: { label: string; free: string | boolean; pro: string | boolean; studio: string | boolean }[] = [
   { label: "Un-crops", free: "3 / day", pro: "100 / mo", studio: "300 / mo" },
+  { label: "Resizes", free: "3 / day", pro: "1 credit ea.", studio: "1 credit ea." },
   { label: "Credits roll over", free: false, pro: false, studio: false },
   { label: "Processing", free: "Fast (TURBO)", pro: "Fast (TURBO)", studio: "Fast (TURBO)" },
   { label: "Watermark", free: "None", pro: "None", studio: "None" },
@@ -102,8 +108,8 @@ export default function Pricing() {
         <section style={{ textAlign: "center", paddingTop: 28 }}>
           <h1 className="section-title" style={{ fontSize: 40 }}>Simple, honest pricing</h1>
           <p className="section-sub">
-            Start free with 3 un-crops a day. Upgrade for monthly credits, batch editing, and saved history.
-            1 credit = 1 un-crop.
+            Start free with 3 un-crops and 3 resizes a day. Upgrade for monthly credits, batch editing, and
+            saved history. 1 credit = 1 un-crop or 1 resize.
           </p>
 
           {/* Billing period toggle */}

@@ -1,5 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PLATFORMS, PNG_PLATFORMS, SizePreset } from "../lib/presets";
+import { recordResize, getMyUsage, MyUsage } from "../lib/api";
+import OutOfCreditsModal from "../components/OutOfCreditsModal";
+
+const RESIZE_FREE_DAILY = 3;
 
 type Fit = "fit" | "fill" | "stretch";
 type Bg = "white" | "black" | "blur";
@@ -16,6 +21,11 @@ function loadImg(url: string): Promise<HTMLImageElement> {
 
 export default function Resize() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0, resizeUsedToday: 0 });
+  const [limit, setLimit] = useState<{ open: boolean; reason: "OUT_OF_FREE_DAILY" | "OUT_OF_CREDITS"; message?: string }>(
+    { open: false, reason: "OUT_OF_FREE_DAILY" }
+  );
   const [url, setUrl] = useState<string | null>(null);
   const [platformIdx, setPlatformIdx] = useState(0);
   const [preset, setPreset] = useState<SizePreset>(PLATFORMS[0].presets[0]);
@@ -70,16 +80,42 @@ export default function Resize() {
     return new Promise((res) => c.toBlob((b) => res(b!), fmt === "png" ? "image/png" : "image/jpeg", 0.95));
   }
 
+  useEffect(() => {
+    getMyUsage().then(setUsage);
+  }, []);
+
+  const paid = usage.plan === "pro" || usage.plan === "studio";
+  const remaining = Math.max(0, RESIZE_FREE_DAILY - usage.resizeUsedToday);
+  const usageLabel =
+    usage.plan === "admin"
+      ? "Unlimited"
+      : paid
+      ? `${usage.credits ?? 0} credits left`
+      : `${remaining} of ${RESIZE_FREE_DAILY} resizes left today`;
+
   async function download() {
     if (!url) return;
     setBusy(true);
     try {
+      // Render first (so a render failure isn't charged), then reserve a slot.
       const blob = await exportBlob();
+      try {
+        await recordResize();
+      } catch (e: any) {
+        const code = e?.code as string | undefined;
+        const reason = e?.details?.reason as string | undefined;
+        if (code === "functions/resource-exhausted" || reason === "OUT_OF_CREDITS" || reason === "OUT_OF_FREE_DAILY") {
+          setLimit({ open: true, reason: reason === "OUT_OF_CREDITS" ? "OUT_OF_CREDITS" : "OUT_OF_FREE_DAILY", message: e?.message });
+          return;
+        }
+        throw e;
+      }
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = isFavicon ? `favicon.${fmt}` : `uncropit-${target.w}x${target.h}.${fmt}`;
       a.click();
       URL.revokeObjectURL(a.href);
+      getMyUsage().then(setUsage);
     } finally {
       setBusy(false);
     }
@@ -195,9 +231,21 @@ export default function Resize() {
           <button className="app-cta accent" onClick={download} disabled={!url || busy}>
             {busy ? "Exporting…" : `Download ${target.w}×${target.h} ${fmt.toUpperCase()}`}
           </button>
+          <div className="muted" style={{ fontSize: 12, textAlign: "center" }}>{usageLabel}</div>
         </div>
       </main>
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPick} />
+
+      <OutOfCreditsModal
+        open={limit.open}
+        reason={limit.reason}
+        message={limit.message}
+        onClose={() => setLimit((m) => ({ ...m, open: false }))}
+        onUpgrade={() => {
+          setLimit((m) => ({ ...m, open: false }));
+          navigate("/pricing");
+        }}
+      />
     </>
   );
 }

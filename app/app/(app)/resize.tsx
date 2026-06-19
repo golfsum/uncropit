@@ -13,6 +13,7 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
@@ -23,6 +24,8 @@ import { captureRef } from "react-native-view-shot";
 import { theme } from "../../src/theme";
 import { ScreenHeader } from "../../src/components/ScreenHeader";
 import { webDownload } from "../../src/lib/download";
+import { recordResize } from "../../src/lib/api";
+import OutOfCreditsModal, { LimitReason } from "../../src/components/OutOfCreditsModal";
 import { PLATFORMS, FILL_PLATFORMS, SizePreset } from "../../src/lib/presets";
 
 type Fit = "fill" | "fit" | "stretch";
@@ -33,7 +36,34 @@ const BG_COLORS: Record<Exclude<Bg, "blur">, string> = { white: "#FFFFFF", black
 
 export default function ResizeScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const canvasRef = useRef<View>(null);
+  const [limit, setLimit] = useState<{ open: boolean; reason: LimitReason; message?: string }>({
+    open: false,
+    reason: "OUT_OF_FREE_DAILY",
+  });
+
+  // Reserve a resize export server-side (free daily quota or 1 credit). Returns
+  // false and opens the upgrade modal when the user is over their limit.
+  async function reserveExport(): Promise<boolean> {
+    try {
+      await recordResize();
+      return true;
+    } catch (e: any) {
+      const code = e?.code as string | undefined;
+      const reason = e?.details?.reason as string | undefined;
+      if (code === "functions/resource-exhausted" || reason === "OUT_OF_CREDITS" || reason === "OUT_OF_FREE_DAILY") {
+        setLimit({
+          open: true,
+          reason: reason === "OUT_OF_CREDITS" ? "OUT_OF_CREDITS" : "OUT_OF_FREE_DAILY",
+          message: e?.message,
+        });
+      } else {
+        Alert.alert("Couldn't export", e?.message ?? "Try again.");
+      }
+      return false;
+    }
+  }
 
   const [uri, setUri] = useState<string | null>(null);
   const [srcDims, setSrcDims] = useState({ w: 0, h: 0 });
@@ -201,6 +231,8 @@ export default function ResizeScreen() {
     try {
       setBusy(true);
       const out = await render();
+      // Meter the export (free daily quota or 1 credit) before delivering it.
+      if (!(await reserveExport())) return;
       // Web: browsers have no Photos/Files — download the file instead.
       if (Platform.OS === "web") {
         await webDownload(out, isFavicon ? `favicon.${fmt}` : `uncropit-${target.w}x${target.h}.${fmt}`);
@@ -233,6 +265,7 @@ export default function ResizeScreen() {
     try {
       setBusy(true);
       const out = await render();
+      if (!(await reserveExport())) return;
       if (Platform.OS === "web") {
         await webDownload(out, `uncropit-${target.w}x${target.h}.${fmt}`);
         return;
@@ -250,6 +283,7 @@ export default function ResizeScreen() {
     <View style={styles.root}>
       <ScreenHeader
         subtitle="Resize & export for any platform."
+        usageKind="resize"
         right={
           <Pressable onPress={pick} style={styles.headerBtn}>
             <Ionicons name="images-outline" size={18} color={theme.text} />
@@ -431,6 +465,17 @@ export default function ResizeScreen() {
           </Pressable>
         </View>
       </View>
+
+      <OutOfCreditsModal
+        open={limit.open}
+        reason={limit.reason}
+        message={limit.message}
+        onClose={() => setLimit((l) => ({ ...l, open: false }))}
+        onUpgrade={() => {
+          setLimit((l) => ({ ...l, open: false }));
+          router.push("/paywall");
+        }}
+      />
     </View>
   );
 }

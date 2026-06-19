@@ -17,6 +17,7 @@ import { randomUUID } from "crypto";
 import { db, storage } from "./admin";
 import {
   FREE_DAILY,
+  RESIZE_FREE_DAILY,
   PLAN_CREDITS,
   isPaidPlan,
   normalizePlan,
@@ -363,6 +364,87 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
     // The source upload is transient — delete it once processing is done.
     await deleteSource(input.imageUrl).catch(() => undefined);
   }
+});
+
+/**
+ * Meter a resize export. Resize runs on-device / in-browser (no AI cost), but
+ * it's metered like un-crop: free users get RESIZE_FREE_DAILY/day (per account
+ * AND per device), paid users spend 1 credit. Reserve a slot here; the client
+ * only calls this once it's about to export, so there's nothing to refund.
+ */
+export const recordResize = onCall(async (request) => {
+  const uid = requireAuth(request);
+  const input = (request.data ?? {}) as { platform?: string; deviceId?: string };
+  const platform = typeof input.platform === "string" ? input.platform : null;
+  const deviceId =
+    typeof input.deviceId === "string" && input.deviceId.length >= 8 ? input.deviceId.slice(0, 128) : null;
+  const today = dayKey();
+  const isAdmin = request.auth!.token.admin === true;
+  const userRef = db.collection("users").doc(uid);
+  const deviceRef = deviceId ? db.collection("devices").doc(deviceId) : null;
+
+  await db.runTransaction(async (tx) => {
+    const u = (await tx.get(userRef)).data() || {};
+    const dev = deviceRef ? (await tx.get(deviceRef)).data() || {} : {};
+
+    if (isAdmin || u.role === "admin") {
+      tx.set(userRef, platformPatch(platform), { merge: true });
+      return;
+    }
+
+    const plan = normalizePlan(u.plan);
+    if (isPaidPlan(plan)) {
+      const renewAt = u.creditsRenewAt;
+      const due = !renewAt || renewAt.toMillis() <= Date.now();
+      const credits = due ? PLAN_CREDITS[plan] : u.credits ?? 0;
+      const patch: Record<string, unknown> = { ...platformPatch(platform) };
+      if (due) patch.creditsRenewAt = Timestamp.fromDate(nextRenewal());
+      if (credits <= 0) {
+        const when = renewAt ? renewAt.toDate().toLocaleDateString() : "next cycle";
+        throw new HttpsError(
+          "resource-exhausted",
+          `You're out of credits. They renew on ${when}, or upgrade to Studio for more.`,
+          { reason: "OUT_OF_CREDITS", plan }
+        );
+      }
+      patch.credits = credits - 1;
+      tx.set(userRef, patch, { merge: true });
+      return;
+    }
+
+    // Free tier: resize-specific daily counters (separate from un-crop).
+    const accUsed = u.resizeFreeDate === today ? u.resizeFreeUsed ?? 0 : 0;
+    if (accUsed >= RESIZE_FREE_DAILY) {
+      throw new HttpsError(
+        "resource-exhausted",
+        `You've used all ${RESIZE_FREE_DAILY} free resizes for today. They reset tomorrow, or upgrade for more.`,
+        { reason: "OUT_OF_FREE_DAILY", limit: RESIZE_FREE_DAILY }
+      );
+    }
+    if (deviceRef) {
+      const devUsed = dev.resizeDate === today ? dev.resizeUsed ?? 0 : 0;
+      if (devUsed >= RESIZE_FREE_DAILY) {
+        throw new HttpsError(
+          "resource-exhausted",
+          `This device has used all ${RESIZE_FREE_DAILY} free resizes for today. They reset tomorrow, or upgrade for more.`,
+          { reason: "OUT_OF_FREE_DAILY", scope: "device", limit: RESIZE_FREE_DAILY }
+        );
+      }
+      tx.set(
+        deviceRef,
+        { resizeDate: today, resizeUsed: devUsed + 1, uids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+    }
+    tx.set(
+      userRef,
+      { resizeFreeDate: today, resizeFreeUsed: accUsed + 1, ...platformPatch(platform) },
+      { merge: true }
+    );
+  });
+
+  await userRef.set({ lifetimeResizes: FieldValue.increment(1) }, { merge: true }).catch(() => undefined);
+  return { ok: true };
 });
 
 export const aiAnimate = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async (request) => {

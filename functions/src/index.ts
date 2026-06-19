@@ -30,7 +30,7 @@ async function deleteStorageUrl(url?: string | null): Promise<void> {
   await storage.bucket().file(path).delete().catch(() => undefined);
 }
 
-export { aiUncrop, aiAnimate } from "./ai";
+export { aiUncrop, aiAnimate, recordResize } from "./ai";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -296,6 +296,7 @@ export const adminListUsers = onCall(async (request) => {
       plan, // "free" | "pro" | "studio" | "admin"
       credits: plan === "pro" || plan === "studio" ? p.credits ?? 0 : null,
       freeUsedToday: p.freeDate === today ? p.freeUsed ?? 0 : 0,
+      resizeUsedToday: p.resizeFreeDate === today ? p.resizeFreeUsed ?? 0 : 0,
       platforms: p.platforms || {}, // { web: true, ios: true }
       lastPlatform: p.lastPlatform ?? null,
     };

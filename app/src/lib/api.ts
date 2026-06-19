@@ -19,6 +19,13 @@ const _reply = httpsCallable(functions, "addTicketReply");
 const _deleteAccount = httpsCallable(functions, "deleteMyAccount");
 const _deleteData = httpsCallable(functions, "deleteMyData");
 const _syncSubscription = httpsCallable(functions, "syncSubscription");
+const _recordResize = httpsCallable(functions, "recordResize");
+
+/** Reserve one resize export (free daily quota or 1 credit). Throws if over the limit. */
+export async function recordResize(): Promise<void> {
+  const deviceId = await getDeviceId();
+  await _recordResize({ platform: Platform.OS, deviceId });
+}
 
 /** Re-sync this account's plan from its RevenueCat entitlement (server-verified). */
 export async function syncSubscription(plan?: string): Promise<{ plan: string; credits: number }> {

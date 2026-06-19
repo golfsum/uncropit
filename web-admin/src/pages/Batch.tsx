@@ -24,7 +24,7 @@ export default function Batch() {
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0 });
+  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0, resizeUsedToday: 0 });
   const [aspect, setAspect] = useState("16:9");
   const [items, setItems] = useState<Item[]>([]);
   const [running, setRunning] = useState(false);

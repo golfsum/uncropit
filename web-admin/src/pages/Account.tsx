@@ -17,7 +17,7 @@ function provider(user: ReturnType<typeof useAuth>["user"]): string {
 export default function Account() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
-  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0 });
+  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0, resizeUsedToday: 0 });
   const [subject, setSubject] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [message, setMessage] = useState("");

@@ -85,12 +85,13 @@ export interface MyUsage {
   plan: "free" | "pro" | "studio" | "admin";
   credits: number | null; // remaining monthly credits (paid only)
   freeUsedToday: number; // free un-crops used today
+  resizeUsedToday: number; // free resizes used today
 }
 
 /** Read the signed-in user's server-side plan + usage. */
 export async function getMyUsage(): Promise<MyUsage> {
   const uid = auth.currentUser?.uid;
-  if (!uid) return { plan: "free", credits: null, freeUsedToday: 0 };
+  if (!uid) return { plan: "free", credits: null, freeUsedToday: 0, resizeUsedToday: 0 };
   const snap = await getDoc(doc(db, "users", uid));
   const d = snap.data() || {};
   const plan = d.role === "admin" ? "admin" : d.plan === "pro" || d.plan === "studio" ? d.plan : "free";
@@ -99,11 +100,16 @@ export async function getMyUsage(): Promise<MyUsage> {
     plan,
     credits: plan === "pro" || plan === "studio" ? d.credits ?? 0 : null,
     freeUsedToday: d.freeDate === today ? d.freeUsed || 0 : 0,
+    resizeUsedToday: d.resizeFreeDate === today ? d.resizeFreeUsed || 0 : 0,
   };
 }
 
 /** Re-sync the signed-in user's plan from their RevenueCat entitlement. */
 export const syncSubscription = () => call("syncSubscription")({}).then((r) => r.data);
+
+/** Reserve one resize export (free daily quota or 1 credit). Throws if over the limit. */
+export const recordResize = () =>
+  call("recordResize")({ platform: "web", deviceId: deviceId() }).then((r) => r.data);
 
 /** Permanently delete the signed-in user's account, data, and uploads. */
 export async function deleteAccount(): Promise<void> {
@@ -147,6 +153,7 @@ export interface AdminUser {
   plan: "free" | "pro" | "studio" | "admin";
   credits: number | null; // remaining monthly credits (paid tiers only)
   freeUsedToday: number; // free un-crops used today
+  resizeUsedToday: number; // free resizes used today
   platforms: Record<string, boolean>; // { web: true, ios: true }
   lastPlatform: string | null;
 }
