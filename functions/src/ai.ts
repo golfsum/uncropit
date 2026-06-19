@@ -274,7 +274,8 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
         const when = renewAt ? renewAt.toDate().toLocaleDateString() : "next cycle";
         throw new HttpsError(
           "resource-exhausted",
-          `You're out of credits. They renew on ${when}, or upgrade to Studio for more.`
+          `You're out of credits. They renew on ${when}, or upgrade to Studio for more.`,
+          { reason: "OUT_OF_CREDITS", plan, renewsOn: when }
         );
       }
       patch.credits = credits - 1;
@@ -289,7 +290,8 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
     if (accUsed >= FREE_DAILY) {
       throw new HttpsError(
         "resource-exhausted",
-        `You've used all ${FREE_DAILY} free un-crops for today. They reset tomorrow, or upgrade for more.`
+        `You've used all ${FREE_DAILY} free un-crops for today. They reset tomorrow, or upgrade for more.`,
+        { reason: "OUT_OF_FREE_DAILY", limit: FREE_DAILY }
       );
     }
 
@@ -299,7 +301,8 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
       if (devUsed >= FREE_DAILY) {
         throw new HttpsError(
           "resource-exhausted",
-          `This device has used all ${FREE_DAILY} free un-crops for today. They reset tomorrow, or upgrade for more.`
+          `This device has used all ${FREE_DAILY} free un-crops for today. They reset tomorrow, or upgrade for more.`,
+          { reason: "OUT_OF_FREE_DAILY", scope: "device", limit: FREE_DAILY }
         );
       }
       tx.set(
@@ -339,6 +342,8 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
     // ephemeral provider URL (download-only).
     const finalUrl = keepResult ? await persistResult(uid, resultUrl).catch(() => resultUrl) : resultUrl;
     const jobId = await recordJob(uid, "uncrop", input, "succeeded", finalUrl);
+    // Lifetime counter (successes only) for the admin dashboard / analytics.
+    await userRef.set({ lifetimeGenerations: FieldValue.increment(1) }, { merge: true }).catch(() => undefined);
     return { ok: true, jobId, resultUrl: finalUrl };
   } catch (e) {
     // Refund whatever we reserved if the run itself failed.

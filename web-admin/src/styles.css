@@ -209,3 +209,27 @@ button.danger { background: transparent; color: var(--danger); font-weight: 700;
   .demo-card.after { width: 300px; height: 220px; }
   .demo-card.before { width: 160px; height: 220px; }
 }
+
+/* Out-of-credits / paywall modal */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+  padding: 20px;
+}
+.modal-card {
+  width: 100%; max-width: 420px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 32px 28px; text-align: center;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+.modal-icon {
+  width: 56px; height: 56px; margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 999px; font-size: 24px;
+  background: rgba(124, 92, 255, 0.15); color: var(--primary);
+}
+.modal-title { margin: 0; font-size: 22px; font-weight: 800; color: var(--text); }
+.modal-body { margin: 12px 0 0; font-size: 14px; line-height: 1.5; color: var(--dim); }
+.modal-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+.modal-fine { margin: 14px 0 0; font-size: 12px; color: var(--dim); }

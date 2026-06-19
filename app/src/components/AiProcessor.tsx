@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "expo-router";
 import {
   View,
   Image,
@@ -20,6 +21,7 @@ import { theme } from "../theme";
 import { ScreenHeader } from "./ScreenHeader";
 import { webDownload } from "../lib/download";
 import { uploadUserImage, uncropImage } from "../lib/api";
+import OutOfCreditsModal, { LimitReason } from "./OutOfCreditsModal";
 
 // Bria expand-image target ratios. Pick the shape that adds scene where you
 // want it — e.g. a wide ratio adds left/right, a tall ratio adds top/bottom.
@@ -37,12 +39,17 @@ const ASPECTS: { id: string; label: string }[] = [
  */
 export function AiProcessor({ mode }: { mode: "uncrop" }) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [aspect, setAspect] = useState("16:9");
   const [saving, setSaving] = useState(false);
+  const [limit, setLimit] = useState<{ open: boolean; reason: LimitReason; message?: string }>({
+    open: false,
+    reason: "GENERIC",
+  });
   const busy = stage !== "idle";
 
   // Download the remote AI result to a local file so it can be saved/shared.
@@ -113,7 +120,17 @@ export function AiProcessor({ mode }: { mode: "uncrop" }) {
       const out = await uncropImage({ imageUrl, aspectRatio: aspect, fileName: fileName ?? undefined });
       setResultUrl(out.resultUrl);
     } catch (e: any) {
-      Alert.alert("Processing failed", e?.message ?? "Try again in a moment.");
+      const code = e?.code as string | undefined;
+      const reason = e?.details?.reason as string | undefined;
+      if (code === "functions/resource-exhausted" || reason === "OUT_OF_CREDITS" || reason === "OUT_OF_FREE_DAILY") {
+        setLimit({
+          open: true,
+          reason: reason === "OUT_OF_CREDITS" ? "OUT_OF_CREDITS" : "OUT_OF_FREE_DAILY",
+          message: e?.message,
+        });
+      } else {
+        Alert.alert("Processing failed", e?.message ?? "Try again in a moment.");
+      }
     } finally {
       setStage("idle");
     }
@@ -207,6 +224,17 @@ export function AiProcessor({ mode }: { mode: "uncrop" }) {
           </View>
         )}
       </View>
+
+      <OutOfCreditsModal
+        open={limit.open}
+        reason={limit.reason}
+        message={limit.message}
+        onClose={() => setLimit((l) => ({ ...l, open: false }))}
+        onUpgrade={() => {
+          setLimit((l) => ({ ...l, open: false }));
+          router.push("/paywall");
+        }}
+      />
     </View>
   );
 }

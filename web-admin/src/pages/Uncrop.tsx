@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { uploadUserImage, uncropImage, getMyUsage, MyUsage } from "../lib/api";
+import OutOfCreditsModal from "../components/OutOfCreditsModal";
 
 const FREE_DAILY = 3;
 const ASPECTS = [
@@ -12,6 +14,7 @@ const ASPECTS = [
 
 export default function Uncrop() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   const [localUrl, setLocalUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -20,6 +23,11 @@ export default function Uncrop() {
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [error, setError] = useState("");
   const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0 });
+  const [limitModal, setLimitModal] = useState<{
+    open: boolean;
+    reason: "OUT_OF_FREE_DAILY" | "OUT_OF_CREDITS" | "GENERIC";
+    message?: string;
+  }>({ open: false, reason: "GENERIC" });
 
   useEffect(() => {
     getMyUsage().then(setUsage);
@@ -48,7 +56,17 @@ export default function Uncrop() {
       const out = await uncropImage({ imageUrl, aspectRatio: aspect, fileName: file.name });
       setResultUrl(out.resultUrl);
     } catch (e: any) {
-      setError(e?.message ?? "Something went wrong. Try again.");
+      const code = e?.code as string | undefined;
+      const reason = e?.details?.reason as string | undefined;
+      if (code === "functions/resource-exhausted" || reason === "OUT_OF_CREDITS" || reason === "OUT_OF_FREE_DAILY") {
+        setLimitModal({
+          open: true,
+          reason: reason === "OUT_OF_CREDITS" ? "OUT_OF_CREDITS" : "OUT_OF_FREE_DAILY",
+          message: e?.message,
+        });
+      } else {
+        setError(e?.message ?? "Something went wrong. Try again.");
+      }
     } finally {
       setStage("idle");
     }
@@ -155,6 +173,17 @@ export default function Uncrop() {
       </main>
 
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPick} />
+
+      <OutOfCreditsModal
+        open={limitModal.open}
+        reason={limitModal.reason}
+        message={limitModal.message}
+        onClose={() => setLimitModal((m) => ({ ...m, open: false }))}
+        onUpgrade={() => {
+          setLimitModal((m) => ({ ...m, open: false }));
+          navigate("/app/account");
+        }}
+      />
     </>
   );
 }

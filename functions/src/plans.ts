@@ -20,7 +20,7 @@ export const FREE_DAILY = num(process.env.FREE_DAILY, 3);
 export const PLAN_CREDITS: Record<PlanId, number> = {
   free: 0,
   pro: num(process.env.PRO_CREDITS, 100),
-  studio: num(process.env.STUDIO_CREDITS, 400),
+  studio: num(process.env.STUDIO_CREDITS, 300),
 };
 
 export function isPaidPlan(plan?: string | null): plan is "pro" | "studio" {

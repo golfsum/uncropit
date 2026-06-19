@@ -10,13 +10,13 @@
  * Security model: every privileged callable checks `request.auth.token.admin`.
  * The very first admin is granted via bootstrapAdmin() using BOOTSTRAP_SECRET.
  */
-import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
+import { onCall, onRequest, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { auth as authTrigger } from "firebase-functions/v1";
 import { logger } from "firebase-functions/v2";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { auth, db, storage } from "./admin";
-import { PLAN_CREDITS, PlanId, normalizePlan, nextRenewal } from "./plans";
+import { PLAN_CREDITS, PlanId, normalizePlan, nextRenewal, isPaidPlan } from "./plans";
 
 const RETENTION_DAYS = 30;
 
@@ -60,6 +60,9 @@ export const onUserCreate = authTrigger.user().onCreate(async (user) => {
     isAnonymous: user.providerData.length === 0,
     disabled: false,
     role: "user",
+    plan: "free",
+    credits: 0,
+    lifetimeGenerations: 0,
     createdAt: FieldValue.serverTimestamp(),
     lastSeenAt: FieldValue.serverTimestamp(),
   };
@@ -165,10 +168,32 @@ async function fetchRevenueCatPlan(uid: string): Promise<PlanId | null> {
 }
 
 /**
+ * Apply a plan to a user's Firestore profile. Seeds the monthly credit balance
+ * when the plan changes, or when `refill` is true (a renewal). Never downgrades
+ * an admin.
+ */
+async function applyPlan(uid: string, plan: PlanId, refill: boolean): Promise<void> {
+  const ref = db.collection("users").doc(uid);
+  await db.runTransaction(async (tx) => {
+    const u = (await tx.get(ref)).data() || {};
+    if (u.role === "admin") return;
+    const current = normalizePlan(u.plan);
+    const changed = current !== plan;
+    const patch: Record<string, unknown> = { plan, planUpdatedAt: FieldValue.serverTimestamp() };
+    if (isPaidPlan(plan) && (changed || refill)) {
+      patch.credits = PLAN_CREDITS[plan];
+      patch.creditsRenewAt = Timestamp.fromDate(nextRenewal());
+    } else if (plan === "free" && changed) {
+      patch.credits = 0;
+    }
+    tx.set(ref, patch, { merge: true });
+  });
+}
+
+/**
  * Called by the app/web after a purchase or on launch. Determines the user's
  * plan (verified against RevenueCat when REVENUECAT_SECRET_KEY is set, otherwise
- * trusting the client's reported entitlement for dev), and updates Firestore —
- * seeding the monthly credit balance whenever the plan changes.
+ * trusting the client's reported entitlement for dev), and updates Firestore.
  */
 export const syncSubscription = onCall(async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign in required.");
@@ -178,29 +203,55 @@ export const syncSubscription = onCall(async (request) => {
   const claimed = normalizePlan(request.data?.plan);
   const plan: PlanId = verified ?? claimed; // verified wins when RC is configured
 
-  const ref = db.collection("users").doc(uid);
-  await db.runTransaction(async (tx) => {
-    const u = (await tx.get(ref)).data() || {};
-    if (u.role === "admin") return; // never downgrade an admin
-    const current = normalizePlan(u.plan);
-    if (current === plan) {
-      tx.set(ref, { plan }, { merge: true });
-      return;
-    }
-    // Plan changed: set the new allotment and start a fresh 30-day cycle.
-    tx.set(
-      ref,
-      {
-        plan,
-        credits: PLAN_CREDITS[plan],
-        creditsRenewAt: Timestamp.fromDate(nextRenewal()),
-        planUpdatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-  });
+  await applyPlan(uid, plan, false);
+  const d = (await db.collection("users").doc(uid).get()).data() || {};
+  return { plan: normalizePlan(d.plan), credits: d.credits ?? PLAN_CREDITS[plan] };
+});
 
-  return { plan, credits: PLAN_CREDITS[plan] };
+/**
+ * RevenueCat server-to-server webhook. The robust way to keep plans in sync:
+ * RevenueCat calls this on purchase, renewal, cancellation, expiration, etc.
+ * We re-derive the authoritative plan and refill credits on renewal/purchase.
+ *
+ * Configure in RevenueCat -> Integrations -> Webhooks:
+ *   URL:  https://<region>-<project>.cloudfunctions.net/revenueCatWebhook
+ *   Authorization header value = REVENUECAT_WEBHOOK_AUTH (any long random string).
+ */
+export const revenueCatWebhook = onRequest(async (req, res) => {
+  const expected = process.env.REVENUECAT_WEBHOOK_AUTH;
+  if (expected && req.header("Authorization") !== expected) {
+    res.status(401).send("unauthorized");
+    return;
+  }
+
+  const event = (req.body && req.body.event) || {};
+  const uid: string | undefined = event.app_user_id || event.original_app_user_id;
+  if (!uid) {
+    res.status(400).send("missing app_user_id");
+    return;
+  }
+
+  const type: string = event.type || "";
+  // Authoritative plan from the REST API when configured, else from the event.
+  let plan = await fetchRevenueCatPlan(uid);
+  if (plan == null) {
+    const ids: string[] = event.entitlement_ids || (event.entitlement_id ? [event.entitlement_id] : []);
+    plan = ids.includes("studio") ? "studio" : ids.includes("pro") ? "pro" : "free";
+    if (type === "EXPIRATION" || type === "CANCELLATION") plan = "free";
+  }
+
+  const refill = ["INITIAL_PURCHASE", "RENEWAL", "PRODUCT_CHANGE", "UNCANCELLATION", "NON_RENEWING_PURCHASE"].includes(
+    type
+  );
+
+  try {
+    await applyPlan(uid, plan, refill);
+    logger.info("revenueCatWebhook applied", { uid, type, plan, refill });
+    res.status(200).send("ok");
+  } catch (e) {
+    logger.error("revenueCatWebhook failed", e);
+    res.status(500).send("error");
+  }
 });
 
 // ---------------------------------------------------------------------------

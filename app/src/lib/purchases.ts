@@ -8,8 +8,8 @@
  * Real subscriptions require:
  *   - A paid Apple Developer account + App Store Connect with FOUR auto-renewable
  *     subscription products in one group:
- *       Pro:    uncropit_pro_monthly ($9.99),  uncropit_pro_yearly ($79.99)
- *       Studio: uncropit_studio_monthly ($29.99), uncropit_studio_yearly ($239.99)
+ *       Pro:    uncropit_pro_monthly ($9.99),  uncropit_pro_yearly ($99.99)
+ *       Studio: uncropit_studio_monthly ($29.99), uncropit_studio_yearly ($299.99)
  *   - A RevenueCat project with TWO entitlements, "pro" (attached to the Pro
  *     products) and "studio" (attached to the Studio products), and the iOS
  *     public API key in EXPO_PUBLIC_REVENUECAT_IOS_KEY.
@@ -35,12 +35,12 @@ export const PRODUCT_IDS = {
 
 // Display fallbacks used when RevenueCat isn't returning live prices yet.
 export const PRICE_FALLBACK = {
-  pro: { monthly: "$9.99", yearly: "$79.99" },
-  studio: { monthly: "$29.99", yearly: "$239.99" },
+  pro: { monthly: "$9.99", yearly: "$99.99" },
+  studio: { monthly: "$29.99", yearly: "$299.99" },
 };
 
 // Monthly credits per tier (mirrors functions/src/plans.ts for display only).
-export const TIER_CREDITS = { pro: 100, studio: 400 };
+export const TIER_CREDITS = { pro: 100, studio: 300 };
 
 let configured = false;
 
