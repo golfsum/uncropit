@@ -95,6 +95,17 @@ nav.admin a.active { background: var(--surface); color: var(--text); }
 .demo-tag.ai { background: var(--primary); }
 .demo-arrow { color: var(--primary); font-size: 28px; font-weight: 800; }
 
+/* With-bars vs without comparison */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 900px; margin: 0 auto; }
+.cmp { margin: 0; }
+.cmp-frame { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); background: #000; }
+.cmp-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cmp-frame.bars img { object-fit: contain; }
+.cmp.win .cmp-frame { box-shadow: 0 0 0 2px var(--primary); }
+.cmp figcaption { text-align: center; color: var(--dim); font-size: 13px; margin-top: 10px; font-weight: 600; }
+.cmp.win figcaption { color: var(--text); }
+@media (max-width: 720px) { .compare { grid-template-columns: 1fr; } }
+
 /* How-to steps */
 .section-title { text-align: center; font-size: 34px; margin: 64px 0 8px; }
 .section-sub { text-align: center; color: var(--dim); margin: 0 auto 36px; max-width: 560px; }
