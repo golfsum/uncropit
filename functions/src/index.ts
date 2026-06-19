@@ -1,5 +1,5 @@
 /**
- * Cloud Functions for Expand AI.
+ * Cloud Functions for UnCrop It.
  *
  *  - Auth trigger to provision user profiles + maintain a user count.
  *  - Admin-only callables: list users, enable/disable, send password reset,

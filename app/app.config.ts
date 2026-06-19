@@ -33,11 +33,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     usesAppleSignIn: true,
     infoPlist: {
       NSPhotoLibraryUsageDescription:
-        "Expand AI needs access to your photos to uncrop and resize them.",
+        "UnCrop It needs access to your photos to uncrop and resize them.",
       NSPhotoLibraryAddUsageDescription:
-        "Expand AI saves your resized and uncropped images to your photo library.",
+        "UnCrop It saves your resized and uncropped images to your photo library.",
       NSCameraUsageDescription:
-        "Expand AI can use your camera to capture a photo to expand or resize.",
+        "UnCrop It can use your camera to capture a photo to expand or resize.",
       // Expose the app's Documents folder in the Files app (saved favicons live here).
       UIFileSharingEnabled: true,
       LSSupportsOpeningDocumentsInPlace: true,
@@ -66,7 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       "expo-image-picker",
       {
-        photosPermission: "Expand AI accesses your photos so you can uncrop and resize them.",
+        photosPermission: "UnCrop It accesses your photos so you can uncrop and resize them.",
       },
     ],
   ],
