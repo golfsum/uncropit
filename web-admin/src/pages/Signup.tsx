@@ -11,7 +11,7 @@ const RULES = [
 ];
 
 export default function Signup() {
-  const { signup, loginGoogle, loginApple, loginGuest } = useAuth();
+  const { signup, loginGoogle, loginApple } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -75,9 +75,6 @@ export default function Signup() {
           </button>
           <button className="ghost" style={{ width: "100%" }} onClick={() => withProvider(loginApple, "Apple sign-in")} disabled={busy}>
              Continue with Apple
-          </button>
-          <button className="outline" style={{ width: "100%" }} onClick={() => withProvider(loginGuest, "Guest sign-in")} disabled={busy}>
-            Continue as guest
           </button>
         </div>
         <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>

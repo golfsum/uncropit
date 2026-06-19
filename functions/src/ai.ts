@@ -72,6 +72,24 @@ function requireAuth(request: CallableRequest): string {
   return request.auth.uid;
 }
 
+/**
+ * Web requires a real account: anonymous (guest) users can't spend free credits
+ * from the website, because incognito resets their UID + device id and would let
+ * them farm the free quota. The native app keeps anonymous (Keychain device id
+ * survives, so it isn't bypassable there).
+ */
+function requireRealAccountOnWeb(request: CallableRequest, platform: string | null): void {
+  const provider = (request.auth?.token?.firebase as { sign_in_provider?: string } | undefined)
+    ?.sign_in_provider;
+  if (platform === "web" && provider === "anonymous") {
+    throw new HttpsError(
+      "unauthenticated",
+      "Please sign in with Google, Apple, or email to continue.",
+      { reason: "SIGN_IN_REQUIRED" }
+    );
+  }
+}
+
 /** Fields recording which platform the account is active on (for the dashboard). */
 function platformPatch(platform: string | null): Record<string, unknown> {
   if (!platform) return {};
@@ -251,6 +269,7 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
   // day, counted against BOTH the account and the device (so making new accounts
   // on the same device can't farm extra free credits).
   const platform = typeof input.platform === "string" ? input.platform : null;
+  requireRealAccountOnWeb(request, platform);
   const deviceId =
     typeof input.deviceId === "string" && input.deviceId.length >= 8
       ? input.deviceId.slice(0, 128)
@@ -399,6 +418,7 @@ export const recordResize = onCall(async (request) => {
   const uid = requireAuth(request);
   const input = (request.data ?? {}) as { platform?: string; deviceId?: string };
   const platform = typeof input.platform === "string" ? input.platform : null;
+  requireRealAccountOnWeb(request, platform);
   const deviceId =
     typeof input.deviceId === "string" && input.deviceId.length >= 8 ? input.deviceId.slice(0, 128) : null;
   const today = dayKey();

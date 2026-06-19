@@ -18,7 +18,9 @@ import Tickets from "./pages/admin/Tickets";
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="container">Loading…</div>;
-  if (!user) return <Navigate to="/login" replace />;
+  // Web requires a real account (Google/Apple/email). Anonymous guests are sent
+  // to sign in, since incognito would otherwise reset their free quota.
+  if (!user || user.isAnonymous) return <Navigate to="/login" replace />;
   return children;
 }
 

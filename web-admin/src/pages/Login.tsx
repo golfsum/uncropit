@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 
 export default function Login() {
-  const { login, loginGoogle, loginApple, loginGuest } = useAuth();
+  const { login, loginGoogle, loginApple } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,9 +61,6 @@ export default function Login() {
           </button>
           <button className="ghost" style={{ width: "100%" }} onClick={() => withProvider(loginApple, "Apple sign-in")} disabled={busy}>
              Continue with Apple
-          </button>
-          <button className="outline" style={{ width: "100%" }} onClick={() => withProvider(loginGuest, "Guest sign-in")} disabled={busy}>
-            Continue as guest
           </button>
         </div>
         <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>
