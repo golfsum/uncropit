@@ -1,7 +1,7 @@
 /**
  * Stable per-device id used to enforce the free daily quota across accounts on
  * the same device (anti trial-farming). On iOS we store it in the Keychain via
- * expo-secure-store, which SURVIVES app reinstalls — so deleting and reinstalling
+ * expo-secure-store, which SURVIVES app reinstalls - so deleting and reinstalling
  * the app does not reset the device's free allowance. Falls back to AsyncStorage
  * (Expo Go / module unavailable), which is weaker but still blocks the common
  * "make a new account" bypass.

@@ -192,7 +192,7 @@ export default function Paywall() {
       {/* Sign in first (required), then subscribe. */}
       {!signedIn ? (
         <View style={{ gap: 10, marginTop: 18 }}>
-          <Text style={styles.note}>Sign in to continue — your subscription is tied to your account.</Text>
+          <Text style={styles.note}>Sign in to continue. Your subscription is tied to your account.</Text>
           {Platform.OS === "ios" && (
             <Pressable style={[styles.cta, styles.ctaApple]} onPress={() => doSignIn("apple")} disabled={!!busy}>
               {busy === "apple" ? <ActivityIndicator /> : <Text style={styles.ctaAppleTxt}> Continue with Apple</Text>}
@@ -208,7 +208,7 @@ export default function Paywall() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.ctaPrimaryTxt}>
-              Get {selected.name} — {priceFor(tier, period)}{period === "yearly" ? "/yr" : "/mo"}
+              Get {selected.name} for {priceFor(tier, period)}{period === "yearly" ? "/yr" : "/mo"}
             </Text>
           )}
         </Pressable>

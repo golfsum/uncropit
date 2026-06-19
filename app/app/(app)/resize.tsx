@@ -128,7 +128,7 @@ export default function ResizeScreen() {
     return file;
   }
 
-  // Source pixel dimensions — from the picker if available, else queried live.
+  // Source pixel dimensions - from the picker if available, else queried live.
   // Without these the sharp crop path can't run, so we must not return 0s.
   function getSourceDims(): Promise<{ w: number; h: number }> {
     if (srcDims.w > 0 && srcDims.h > 0) return Promise.resolve(srcDims);
@@ -163,7 +163,7 @@ export default function ResizeScreen() {
       fmt === "jpg" ? ImageManipulator.SaveFormat.JPEG : ImageManipulator.SaveFormat.PNG;
     const dims = await getSourceDims();
 
-    // SVG: embed a crisp 512px PNG inside an SVG wrapper — a valid, scalable
+    // SVG: embed a crisp 512px PNG inside an SVG wrapper - a valid, scalable
     // favicon (raster picture, vector container). Same idea as drawing the image
     // to a canvas and exporting, but built from the full-res source file.
     if (fmt === "svg" && uri && dims.w > 0) {
@@ -185,7 +185,7 @@ export default function ResizeScreen() {
     }
 
     // FILL mode (icons/favicons): crop+resize the ORIGINAL full-res file directly
-    // — no view capture, no downsampling — for the sharpest possible output.
+    // - no view capture, no downsampling - for the sharpest possible output.
     // Favicons ALWAYS take this path (never the soft view-capture fallback).
     if ((fit === "fill" || isFavicon) && uri && dims.w > 0 && dims.h > 0) {
       const out = await ImageManipulator.manipulateAsync(
@@ -202,7 +202,7 @@ export default function ResizeScreen() {
       return out.uri;
     }
 
-    // STRETCH mode: resize the original file to the EXACT target size — no crop,
+    // STRETCH mode: resize the original file to the EXACT target size - no crop,
     // no bars, the whole image. May distort aspect, but it's sharp (from source).
     if (fit === "stretch" && uri) {
       const out = await ImageManipulator.manipulateAsync(
@@ -233,7 +233,7 @@ export default function ResizeScreen() {
       const out = await render();
       // Meter the export (free daily quota or 1 credit) before delivering it.
       if (!(await reserveExport())) return;
-      // Web: browsers have no Photos/Files — download the file instead.
+      // Web: browsers have no Photos/Files - download the file instead.
       if (Platform.OS === "web") {
         await webDownload(out, isFavicon ? `favicon.${fmt}` : `uncropit-${target.w}x${target.h}.${fmt}`);
         return;
@@ -419,7 +419,7 @@ export default function ResizeScreen() {
         {isFavicon && (
           <Text style={styles.hint}>
             Exports as favicon.{fmt} via Share → Files. Small icons can look blurry in a
-            photo viewer (it magnifies them) — they render sharp at actual size in a browser.
+            photo viewer (it magnifies them) - they render sharp at actual size in a browser.
           </Text>
         )}
 

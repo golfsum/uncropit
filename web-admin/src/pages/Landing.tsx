@@ -69,7 +69,7 @@ export default function Landing() {
   useSeo({
     title: "Uncrop it AI: Photo Extender & Resizer | Expand & uncrop images with AI",
     description:
-      "Free AI photo extender and image resizer. Uncrop and expand any picture beyond its edges, fill the background with AI, and resize photos for every platform — browser or iPhone.",
+      "Free AI photo extender and image resizer. Uncrop and expand any picture beyond its edges, fill the background with AI, and resize photos for every platform in your browser or on iPhone.",
     path: "/",
   });
 
@@ -99,7 +99,7 @@ export default function Landing() {
           </h1>
           <p>
             The free AI photo extender and pic resizer. Uncrop and expand any image beyond its edges,
-            let AI fill in the background, and resize for every platform — in seconds.
+            let AI fill in the background, and resize for every platform in seconds.
           </p>
           <div className="lp-badges">
             <span>✓ Free HD download</span>

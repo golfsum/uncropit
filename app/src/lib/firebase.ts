@@ -63,7 +63,7 @@ if (Platform.OS === "web") {
   try {
     auth = initializeAuth(app, { persistence });
   } catch {
-    // Already initialized (e.g. Fast Refresh) — reuse the instance, which keeps
+    // Already initialized (e.g. Fast Refresh) - reuse the instance, which keeps
     // the persistence configured on first init.
     auth = getAuth(app);
   }

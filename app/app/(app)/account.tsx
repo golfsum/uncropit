@@ -60,7 +60,7 @@ export default function AccountScreen() {
 
   function confirmDeleteAccount() {
     const subWarning = isPaid
-      ? "\n\nYou have an active subscription. Deleting your account does NOT cancel it — cancel it first in Settings → Apple ID → Subscriptions, or you may keep being charged."
+      ? "\n\nYou have an active subscription. Deleting your account does NOT cancel it. Cancel it first in Settings → Apple ID → Subscriptions, or you may keep being charged."
       : "";
     Alert.alert(
       "Delete account?",
@@ -93,7 +93,7 @@ export default function AccountScreen() {
     <View style={styles.root}>
       <ScreenHeader subtitle="Manage your account." />
       <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-        {/* Subscription status — whole card is tappable when not subscribed */}
+        {/* Subscription status - whole card is tappable when not subscribed */}
         {plan === "admin" ? (
           <Card style={{ marginTop: 4, marginBottom: 14, borderColor: theme.accent }}>
             <View style={styles.planRow}>

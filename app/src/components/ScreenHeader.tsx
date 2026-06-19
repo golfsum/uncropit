@@ -8,10 +8,10 @@ import { useEntitlement } from "../lib/entitlements";
 // App logo (assets/icon.png) shown next to the title.
 const LOGO = require("../../assets/icon.png");
 
-/** The app's brand title — defined once, used by every screen header. */
+/** The app's brand title - defined once, used by every screen header. */
 export const APP_TITLE = "Uncrop it AI: Photo Extender & Resizer";
 
-/** Compact, tappable usage pill — credits for subscribers, free-left otherwise. */
+/** Compact, tappable usage pill - credits for subscribers, free-left otherwise. */
 function UsagePill({ kind }: { kind: "uncrop" | "resize" }) {
   const router = useRouter();
   const { plan, isPaid, credits, freeRemaining, resizeRemaining } = useEntitlement();

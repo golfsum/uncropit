@@ -57,7 +57,7 @@ const TIERS = [
   },
 ];
 
-// Full breakdown. Values are either text or a boolean (✓ / —).
+// Full breakdown. Values are either text or a boolean (✓ / ✕).
 const COMPARE: { label: string; free: string | boolean; pro: string | boolean; studio: string | boolean }[] = [
   { label: "Un-crops", free: "3 / day", pro: "100 / mo", studio: "300 / mo" },
   { label: "Resizes", free: "3 / day", pro: "1 credit ea.", studio: "1 credit ea." },
@@ -73,7 +73,7 @@ const COMPARE: { label: string; free: string | boolean; pro: string | boolean; s
 
 function cell(v: string | boolean) {
   if (v === true) return <span className="cmp-yes">✓</span>;
-  if (v === false) return <span className="cmp-no">—</span>;
+  if (v === false) return <span className="cmp-no">✕</span>;
   return <span>{v}</span>;
 }
 
@@ -88,7 +88,7 @@ export default function Pricing() {
   const buyHref = user ? "/app/account" : "/signup";
 
   useSeo({
-    title: "Pricing — Uncrop it AI: Photo Extender & Resizer",
+    title: "Pricing | Uncrop it AI: Photo Extender & Resizer",
     description:
       "Uncrop it AI pricing: free daily un-crops and resizes, or upgrade to Pro and Studio for monthly AI credits, batch editing, and saved history. 1 credit = 1 un-crop or resize.",
     path: "/pricing",

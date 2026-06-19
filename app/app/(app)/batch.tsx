@@ -105,7 +105,7 @@ export default function BatchScreen() {
     for (let i = 0; i < items.length; i++) {
       if (items[i].status === "done") continue;
       if (!unlimited && processed >= toProcess) {
-        update(i, { status: "skipped", error: "Skipped — out of credits" });
+        update(i, { status: "skipped", error: "Skipped (out of credits)" });
         continue;
       }
       processed++;

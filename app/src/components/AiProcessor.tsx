@@ -24,7 +24,7 @@ import { uploadUserImage, uncropImage } from "../lib/api";
 import OutOfCreditsModal, { LimitReason } from "./OutOfCreditsModal";
 
 // Bria expand-image target ratios. Pick the shape that adds scene where you
-// want it — e.g. a wide ratio adds left/right, a tall ratio adds top/bottom.
+// want it - e.g. a wide ratio adds left/right, a tall ratio adds top/bottom.
 const ASPECTS: { id: string; label: string }[] = [
   { id: "1:1", label: "Square" },
   { id: "4:5", label: "4:5" },

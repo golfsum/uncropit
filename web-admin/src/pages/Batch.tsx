@@ -80,7 +80,7 @@ export default function Batch() {
     for (let i = 0; i < items.length; i++) {
       if (items[i].status === "done") continue;
       if (!unlimited && processed >= toProcess) {
-        update(i, { status: "skipped", error: "Skipped — out of credits" });
+        update(i, { status: "skipped", error: "Skipped (out of credits)" });
         continue;
       }
       processed++;
@@ -95,7 +95,7 @@ export default function Batch() {
         update(i, { status: "error", error: e?.message ?? "Failed" });
         if (code === "functions/resource-exhausted" || reason === "OUT_OF_CREDITS" || reason === "OUT_OF_FREE_DAILY") {
           setLimitModal(true);
-          break; // out of credits — stop the batch
+          break; // out of credits - stop the batch
         }
       }
     }

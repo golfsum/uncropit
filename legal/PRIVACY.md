@@ -7,12 +7,12 @@ we keep it, and the choices you have. It applies to the UnCrop It iOS app and th
 
 ## What we collect
 
-- **Account info** — your email address and the sign-in method you use (Email, Google, or Apple).
-- **Photos you upload** — the images you choose to un-crop.
-- **AI results** — the expanded images our service generates from your uploads.
-- **Usage data** — a count of how many free un-crops you have used (to enforce the free limit) and
+- **Account info**: your email address and the sign-in method you use (Email, Google, or Apple).
+- **Photos you upload**: the images you choose to un-crop.
+- **AI results**: the expanded images our service generates from your uploads.
+- **Usage data**: a count of how many free un-crops you have used (to enforce the free limit) and
   basic un-crop history records (file name, date, target ratio).
-- **Support messages** — anything you send us through the in-app support form.
+- **Support messages**: anything you send us through the in-app support form.
 
 We do not sell your data, and we do not use your photos to train AI models.
 
@@ -36,9 +36,9 @@ and the result is returned to us. Data is processed and stored on servers locate
 
 ## Your choices
 
-- **Delete your data anytime** — in the app or website under Account, "Delete my data" removes your
+- **Delete your data anytime**: in the app or website under Account, "Delete my data" removes your
   uploaded photos, saved results, and un-crop history while keeping your account.
-- **Delete your account anytime** — "Delete account" permanently removes your account and all
+- **Delete your account anytime**: "Delete account" permanently removes your account and all
   associated data. If you have a paid subscription, cancel it separately in your App Store account
   settings; deleting your account does not cancel billing.
 

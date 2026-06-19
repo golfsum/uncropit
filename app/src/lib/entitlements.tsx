@@ -63,7 +63,7 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
       const rcPlan = await getActivePlan();
       await syncSubscription(rcPlan).catch(() => undefined);
     } catch {
-      // ignore — free tier still works
+      // ignore - free tier still works
     } finally {
       setReady(true);
     }

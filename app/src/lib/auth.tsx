@@ -25,7 +25,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import Constants from "expo-constants";
 import { auth } from "./firebase";
 
-// Native Google Sign-In — lazy-required so importing this file never crashes
+// Native Google Sign-In - lazy-required so importing this file never crashes
 // Expo Go (the native module only exists in a dev/standalone build).
 function getGoogleSignin(): any | null {
   try {
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInGoogle = useCallback(async () => {
-    // Web: native Google SDK doesn't exist — use Firebase's popup flow.
+    // Web: native Google SDK doesn't exist - use Firebase's popup flow.
     if (Platform.OS === "web") {
       await signInWithPopup(auth, new GoogleAuthProvider());
       return;

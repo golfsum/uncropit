@@ -31,7 +31,7 @@ in our Privacy Policy.
 - Continued use beyond the free limit may require a paid subscription.
 - Subscriptions purchased on iOS are billed through your Apple App Store account and renew
   automatically until cancelled. Manage or cancel in your App Store account settings. **Deleting
-  your UnCrop It account does not cancel an active subscription** — cancel it separately.
+  your Uncrop it AI account does not cancel an active subscription**. Cancel it separately.
 
 ## Acceptable use
 

@@ -93,5 +93,5 @@ export const PLATFORMS: PlatformGroup[] = [
   },
 ];
 
-// Platforms that default to Fill mode (full-bleed, no padding) — icons/favicons.
+// Platforms that default to Fill mode (full-bleed, no padding) - icons/favicons.
 export const FILL_PLATFORMS = ["App Store", "Favicon"];
