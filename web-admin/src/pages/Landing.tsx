@@ -63,7 +63,7 @@ const FAQ = [
 ];
 
 export default function Landing() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const startHref = user ? "/app" : "/signup";
 
   useSeo({
@@ -80,7 +80,15 @@ export default function Landing() {
         <div className="row">
           <Link to="/pricing"><button className="ghost">Pricing</button></Link>
           {user ? (
-            <Link to="/app"><button>Open app</button></Link>
+            <>
+              {user.email && (
+                <Link to="/app/account" className="muted" style={{ fontSize: 13, textDecoration: "none" }}>
+                  {user.email}
+                </Link>
+              )}
+              <Link to="/app"><button>Open app</button></Link>
+              <button className="outline" onClick={logout}>Sign out</button>
+            </>
           ) : (
             <>
               <Link to="/login"><button className="ghost">Sign in</button></Link>

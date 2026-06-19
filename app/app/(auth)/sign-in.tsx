@@ -21,7 +21,7 @@ import { theme } from "../../src/theme";
 type Mode = "signin" | "signup";
 
 export default function SignIn() {
-  const { signInAnon, signInGoogle, signInApple, signUpEmail, signInEmail } = useAuth();
+  const { signInGoogle, signInApple, signUpEmail, signInEmail } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState<string | null>(null);
@@ -114,7 +114,7 @@ export default function SignIn() {
         <View style={styles.line} />
       </View>
 
-      {/* Social / guest */}
+      {/* Social sign-in (a real account is required to use the app) */}
       <View style={styles.actions}>
         {Platform.OS === "ios" && (
           <AppleAuthentication.AppleAuthenticationButton
@@ -126,7 +126,6 @@ export default function SignIn() {
           />
         )}
         <Button label="Continue with Google" variant="ghost" loading={busy === "google"} onPress={() => run("google", signInGoogle)} />
-        <Button label="Continue as Guest" variant="outline" loading={busy === "anon"} onPress={() => run("anon", signInAnon)} />
       </View>
 
       <Body style={styles.legal}>By continuing you agree to our Terms of Service and Privacy Policy.</Body>

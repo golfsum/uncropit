@@ -119,7 +119,7 @@ export const setAdminClaim = onCall(async (request) => {
 
 /**
  * Self-service: a signed-in user whose UID is listed in the ADMIN_UIDS env var
- * (comma-separated) gets the admin claim. Grant-only — removal is via the
+ * (comma-separated) gets the admin claim. Grant-only - removal is via the
  * dashboard's "Revoke admin". The web app calls this on login.
  */
 export const syncAdminClaim = onCall(async (request) => {
@@ -145,7 +145,7 @@ export const syncAdminClaim = onCall(async (request) => {
 /** Active RevenueCat entitlement (studio > pro) for an app user, or "free". */
 async function fetchRevenueCatPlan(uid: string): Promise<PlanId | null> {
   const secret = process.env.REVENUECAT_SECRET_KEY;
-  if (!secret) return null; // Not configured — caller falls back to client claim.
+  if (!secret) return null; // Not configured - caller falls back to client claim.
   const res = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(uid)}`, {
     headers: { Authorization: `Bearer ${secret}` },
   });
@@ -316,7 +316,7 @@ export const adminSetDisabled = onCall(async (request) => {
 });
 
 /**
- * Admin: permanently delete a user — auth account, profile, AI history, tickets,
+ * Admin: permanently delete a user - auth account, profile, AI history, tickets,
  * and all stored images. (onUserDelete keeps the global user count in sync.)
  */
 export const adminDeleteUser = onCall(async (request) => {
@@ -349,7 +349,7 @@ export const adminDeleteUser = onCall(async (request) => {
 });
 
 /**
- * Admin: a single user's AI history as metadata only (no image URLs) — e.g.
+ * Admin: a single user's AI history as metadata only (no image URLs) - e.g.
  * "Un-cropped test.jpg". Used by the dashboard's per-user history view.
  */
 export const adminListUserJobs = onCall(async (request) => {

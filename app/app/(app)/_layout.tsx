@@ -5,9 +5,10 @@ import { theme } from "../../src/theme";
 
 export default function AppLayout() {
   const { user, initializing } = useAuth();
-  if (!initializing && !user) return <Redirect href="/(auth)/sign-in" />;
-  // Everyone gets a free daily quota; the paywall is opt-in (reached from the
-  // Account tab or when the daily limit is hit), not a hard gate.
+  // A real account is required to use the app. Guests / not-signed-in go to sign-in.
+  if (!initializing && (!user || user.isAnonymous)) return <Redirect href="/(auth)/sign-in" />;
+  // Signed-in users get a free daily quota; the paywall is opt-in (reached from
+  // the Account tab or when the daily limit is hit), not a hard gate.
 
   return (
     <Tabs
