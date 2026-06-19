@@ -145,6 +145,22 @@ async function runReplicate(model: string, input: Record<string, unknown>): Prom
   return url;
 }
 
+/** Accumulate AI provider spend in stats/usage for the admin dashboard. */
+async function bumpUsage(provider: string, costUsd: number) {
+  const patch: Record<string, unknown> = {
+    totalCalls: FieldValue.increment(1),
+    totalCostUsd: FieldValue.increment(costUsd),
+    lastProvider: provider,
+    lastCallAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  if (provider === "ideogram") {
+    patch.ideogramCalls = FieldValue.increment(1);
+    patch.ideogramCostUsd = FieldValue.increment(costUsd);
+  }
+  await db.doc("stats/usage").set(patch, { merge: true }).catch(() => undefined);
+}
+
 async function recordJob(
   uid: string,
   type: "uncrop" | "animate",
@@ -338,6 +354,13 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
         prompt: input.prompt || "extend the scene naturally with a seamless, photorealistic background",
       });
     }
+
+    // Meter the AI spend for the admin dashboard (estimated per-call cost).
+    const callCostUsd =
+      provider === "ideogram"
+        ? parseFloat(process.env.IDEOGRAM_COST_USD || "0.04")
+        : parseFloat(process.env.REPLICATE_COST_USD || "0");
+    await bumpUsage(provider, callCostUsd);
 
     // Paid/admin users get a durable saved copy for history; free users get the
     // ephemeral provider URL (download-only).

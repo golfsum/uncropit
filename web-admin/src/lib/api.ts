@@ -196,6 +196,43 @@ export const syncAdminClaim = () => call("syncAdminClaim")({}).then((r) => r.dat
 export const sendPasswordReset = (email: string) =>
   call<{ ok: boolean; link: string }>("adminSendPasswordReset")({ email }).then((r) => r.data);
 
+// ---- AI provider usage / Ideogram spend (admin) ----
+export interface UsageStats {
+  ideogramCalls: number;
+  ideogramCostUsd: number;
+  totalCalls: number;
+  totalCostUsd: number;
+  balanceUsd: number | null; // last balance you entered
+  availableUsd: number | null; // balance minus spend since you entered it
+  balanceSetAt: { seconds: number } | null;
+  lastCallAt: { seconds: number } | null;
+}
+
+/** Read the global AI usage/spend stats (admins only, via stats/usage). */
+export async function getUsageStats(): Promise<UsageStats> {
+  const snap = await getDoc(doc(db, "stats", "usage"));
+  const d = snap.data() || {};
+  const ideogramCostUsd = d.ideogramCostUsd || 0;
+  const balanceUsd = typeof d.ideogramBalanceUsd === "number" ? d.ideogramBalanceUsd : null;
+  const consumedAtSet = d.ideogramConsumedAtSet || 0;
+  const availableUsd =
+    balanceUsd == null ? null : Math.max(0, balanceUsd - (ideogramCostUsd - consumedAtSet));
+  return {
+    ideogramCalls: d.ideogramCalls || 0,
+    ideogramCostUsd,
+    totalCalls: d.totalCalls || 0,
+    totalCostUsd: d.totalCostUsd || 0,
+    balanceUsd,
+    availableUsd,
+    balanceSetAt: d.ideogramBalanceSetAt || null,
+    lastCallAt: d.lastCallAt || null,
+  };
+}
+
+/** Reconcile the dashboard with your real Ideogram balance (admins only). */
+export const setIdeogramBalance = (balanceUsd: number) =>
+  call("adminSetIdeogramBalance")({ balanceUsd }).then((r) => r.data);
+
 export interface AdminTicket {
   id: string;
   uid: string;

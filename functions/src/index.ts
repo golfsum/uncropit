@@ -380,6 +380,30 @@ export const adminListUserJobs = onCall(async (request) => {
   return { jobs };
 });
 
+/**
+ * Admin: record the current Ideogram account balance (read from ideogram.ai) so
+ * the dashboard can show "available (est.)" = balance minus everything we've
+ * metered since. Stores the consumed-to-date snapshot as the reconciliation point.
+ */
+export const adminSetIdeogramBalance = onCall(async (request) => {
+  assertAdmin(request);
+  const bal = Number(request.data?.balanceUsd);
+  if (!Number.isFinite(bal) || bal < 0) {
+    throw new HttpsError("invalid-argument", "balanceUsd must be a non-negative number.");
+  }
+  const ref = db.doc("stats/usage");
+  const consumedNow = ((await ref.get()).data()?.ideogramCostUsd as number) || 0;
+  await ref.set(
+    {
+      ideogramBalanceUsd: bal,
+      ideogramConsumedAtSet: consumedNow,
+      ideogramBalanceSetAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+  return { ok: true };
+});
+
 /** Generate a password-reset link for a user with an email/password account. */
 export const adminSendPasswordReset = onCall(async (request) => {
   assertAdmin(request);
