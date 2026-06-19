@@ -286,3 +286,10 @@ button.danger { background: transparent; color: var(--danger); font-weight: 700;
 .batch-status.done { color: var(--accent); }
 .batch-status.processing { color: var(--primary); }
 .batch-status.error { color: var(--danger); }
+
+/* Admin user badges: guest + per-plan colors */
+.badge.guest { background: #3a2f1a; color: #f0b450; }
+.badge.plan-free { background: var(--surface-alt); color: var(--dim); }
+.badge.plan-pro { background: rgba(124,92,255,0.18); color: #b6a4ff; }
+.badge.plan-studio { background: rgba(33,212,180,0.18); color: var(--accent); }
+.badge.plan-admin { background: var(--primary); color: #fff; }

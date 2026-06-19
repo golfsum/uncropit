@@ -157,23 +157,26 @@ function UserRow(props: {
         <td>
           <div style={{ fontWeight: 600 }}>{u.displayName || (u.isAnonymous ? "Guest" : "-")}</div>
           <div className="muted">{u.email || u.uid.slice(0, 12) + "…"}</div>
-          {u.admin && <span className="badge on">admin</span>}
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+            {u.isAnonymous && <span className="badge guest">Guest</span>}
+            {u.admin && <span className="badge on">admin</span>}
+          </div>
         </td>
         <td>
           {u.plan === "admin" ? (
-            <span className="badge on">Admin</span>
+            <span className="badge plan-admin">Admin</span>
           ) : u.plan === "studio" ? (
-            <span className="badge on">Studio · {u.credits ?? 0} cr</span>
+            <span className="badge plan-studio">Studio · {u.credits ?? 0} cr</span>
           ) : u.plan === "pro" ? (
-            <span className="badge on">Pro · {u.credits ?? 0} cr</span>
+            <span className="badge plan-pro">Pro · {u.credits ?? 0} cr</span>
           ) : (
-            <span className="badge">
+            <span className="badge plan-free">
               Free · {Math.min(u.freeUsedToday, freeDaily)}/{freeDaily} today
             </span>
           )}
         </td>
         <td className="muted">{platformLabel(u)}</td>
-        <td className="muted">{u.isAnonymous ? "anonymous" : u.providers.join(", ")}</td>
+        <td className="muted">{u.isAnonymous ? "Guest" : u.providers.join(", ") || "Email"}</td>
         <td className="muted">{fmt(u.createdAt)}</td>
         <td className="muted">{fmt(u.lastSignInAt)}</td>
         <td>
