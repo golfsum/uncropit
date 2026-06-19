@@ -135,7 +135,7 @@ export default function Landing() {
 
         {/* Pricing teaser */}
         <h2 className="section-title">Plans for every creator</h2>
-        <p className="section-sub">Free every day. Upgrade for monthly credits, faster processing, and batch tools.</p>
+        <p className="section-sub">Free every day. Upgrade for monthly credits, batch editing, and saved history.</p>
         <div className="price-teaser">
           <div className="pt-card"><strong>Free</strong><span>3 un-crops / day</span><em>$0</em></div>
           <div className="pt-card featured"><strong>Pro</strong><span>100 credits / mo</span><em>$9.99/mo</em></div>

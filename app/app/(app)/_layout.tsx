@@ -35,6 +35,14 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="batch"
+        options={{
+          title: "Batch",
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => <Ionicons name="albums-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="resize"
         options={{
           title: "Resize",

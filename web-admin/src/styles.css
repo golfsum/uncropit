@@ -277,3 +277,12 @@ button.danger { background: transparent; color: var(--danger); font-weight: 700;
 @media (max-width: 760px) {
   .tier-grid, .price-teaser { grid-template-columns: 1fr; }
 }
+
+/* Batch un-crop grid */
+.batch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 6px; }
+.batch-item { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.batch-item img { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; background: var(--surface-alt); }
+.batch-status { font-size: 12px; font-weight: 600; color: var(--dim); }
+.batch-status.done { color: var(--accent); }
+.batch-status.processing { color: var(--primary); }
+.batch-status.error { color: var(--danger); }

@@ -24,7 +24,7 @@ const TIERS: {
     credits: TIER_CREDITS.pro,
     benefits: [
       `${TIER_CREDITS.pro} credits / month`,
-      "High-speed processing",
+      "Fast TURBO processing",
       "No watermarks",
       "Saved history (30 days)",
     ],
@@ -36,8 +36,8 @@ const TIERS: {
     benefits: [
       `${TIER_CREDITS.studio} credits / month`,
       "Everything in Pro",
-      "Priority processing",
       "Batch editing",
+      "Early access to new features",
     ],
   },
 ];

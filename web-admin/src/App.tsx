@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AppLayout from "./pages/AppLayout";
 import Uncrop from "./pages/Uncrop";
+import Batch from "./pages/Batch";
 import Resize from "./pages/Resize";
 import History from "./pages/History";
 import Account from "./pages/Account";
@@ -47,6 +48,7 @@ export default function App() {
         }
       >
         <Route index element={<Uncrop />} />
+        <Route path="batch" element={<Batch />} />
         <Route path="resize" element={<Resize />} />
         <Route path="history" element={<History />} />
         <Route path="account" element={<Account />} />

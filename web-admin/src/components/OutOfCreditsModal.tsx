@@ -26,7 +26,7 @@ export default function OutOfCreditsModal({
     message ||
     (isCredits
       ? "You've used all your monthly credits. Upgrade to Studio for 300 credits a month, or wait for your next cycle."
-      : "You've used your 3 free un-crops for today. Upgrade for 100+ high-speed monthly exports, batch workflows, and no daily limit.");
+      : "You've used your 3 free un-crops for today. Upgrade for 100+ monthly un-crops, batch editing, and no daily limit.");
 
   return (
     <div className="modal-backdrop" onClick={onClose}>

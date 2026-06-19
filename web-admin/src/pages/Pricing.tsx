@@ -28,7 +28,7 @@ const TIERS = [
     highlight: true,
     features: [
       "100 credits per month",
-      "High-speed processing",
+      "Fast TURBO processing",
       "No watermarks",
       "Saved history (30 days)",
       "Syncs across browser + app",
@@ -45,8 +45,7 @@ const TIERS = [
     features: [
       "300 credits per month",
       "Everything in Pro",
-      "Priority processing",
-      "Batch editing",
+      "Batch editing (multi-image)",
       "Early access to new features",
     ],
   },
@@ -56,7 +55,7 @@ const TIERS = [
 const COMPARE: { label: string; free: string | boolean; pro: string | boolean; studio: string | boolean }[] = [
   { label: "Un-crops", free: "3 / day", pro: "100 / mo", studio: "300 / mo" },
   { label: "Credits roll over", free: false, pro: false, studio: false },
-  { label: "Processing speed", free: "Standard", pro: "High-speed", studio: "Priority" },
+  { label: "Processing", free: "Fast (TURBO)", pro: "Fast (TURBO)", studio: "Fast (TURBO)" },
   { label: "Watermark", free: "None", pro: "None", studio: "None" },
   { label: "HD downloads", free: true, pro: true, studio: true },
   { label: "Saved history (30 days)", free: false, pro: true, studio: true },
@@ -103,7 +102,7 @@ export default function Pricing() {
         <section style={{ textAlign: "center", paddingTop: 28 }}>
           <h1 className="section-title" style={{ fontSize: 40 }}>Simple, honest pricing</h1>
           <p className="section-sub">
-            Start free with 3 un-crops a day. Upgrade for monthly credits, faster processing, and batch tools.
+            Start free with 3 un-crops a day. Upgrade for monthly credits, batch editing, and saved history.
             1 credit = 1 un-crop.
           </p>
 
