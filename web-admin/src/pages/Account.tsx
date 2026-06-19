@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
-import { getMyUsage, deleteAccount, deleteMyData, createTicket } from "../lib/api";
+import { getMyUsage, MyUsage, deleteAccount, deleteMyData, createTicket } from "../lib/api";
 
 const TERMS_URL = "https://www.ndsoft.dev/apps/uncrop-it/terms";
 const PRIVACY_URL = "https://www.ndsoft.dev/apps/uncrop-it/privacy";
@@ -17,7 +17,7 @@ function provider(user: ReturnType<typeof useAuth>["user"]): string {
 export default function Account() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
-  const [usage, setUsage] = useState({ used: 0, pro: false });
+  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0 });
   const [subject, setSubject] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [message, setMessage] = useState("");
@@ -28,7 +28,10 @@ export default function Account() {
     getMyUsage().then(setUsage);
   }, []);
 
-  const remaining = Math.max(0, 3 - usage.used);
+  const paid = usage.plan === "pro" || usage.plan === "studio";
+  const planLabel =
+    usage.plan === "admin" ? "Admin" : usage.plan === "studio" ? "Studio" : usage.plan === "pro" ? "Pro" : "Free";
+  const remaining = Math.max(0, 3 - usage.freeUsedToday);
 
   async function submitTicket() {
     if (subject.trim().length < 3 || message.trim().length < 5) {
@@ -62,7 +65,7 @@ export default function Account() {
   }
 
   async function confirmDeleteAccount() {
-    const subWarn = usage.pro
+    const subWarn = paid
       ? "\n\nYou have an active subscription. Deleting your account does NOT cancel it - cancel in the App Store / your store settings first, or you may keep being charged."
       : "";
     if (!confirm(`Permanently delete your account and all data? This cannot be undone.${subWarn}`)) return;
@@ -83,14 +86,23 @@ export default function Account() {
       <h2>Account</h2>
 
       {/* Subscription */}
-      <div className="card" style={{ borderColor: usage.pro ? "var(--accent)" : "var(--border)" }}>
-        <strong>{usage.pro ? "Pro ✓" : "Free"}</strong>
+      <div className="card" style={{ borderColor: paid || usage.plan === "admin" ? "var(--accent)" : "var(--border)" }}>
+        <strong>
+          {usage.plan === "admin" ? "Admin ✓" : paid ? `${planLabel} ✓` : "Free"}
+        </strong>
         <p className="muted" style={{ margin: "6px 0 0" }}>
-          {usage.pro ? "Everything unlocked. Thanks for subscribing." : `${remaining} of 3 free un-crops left.`}
+          {usage.plan === "admin"
+            ? "Unlimited un-crops."
+            : paid
+            ? `${usage.credits ?? 0} credits left this cycle.`
+            : `${remaining} of 3 free un-crops left today.`}
         </p>
-        {!usage.pro && (
-          <button style={{ marginTop: 12 }} onClick={() => alert("Subscriptions on the web are coming soon.")}>
-            Upgrade to Pro
+        {!paid && usage.plan !== "admin" && (
+          <button
+            style={{ marginTop: 12 }}
+            onClick={() => alert("Subscribe in the iOS app. Web subscriptions are coming soon.")}
+          >
+            Upgrade
           </button>
         )}
       </div>

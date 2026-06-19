@@ -16,6 +16,7 @@ import { auth as authTrigger } from "firebase-functions/v1";
 import { logger } from "firebase-functions/v2";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { auth, db, storage } from "./admin";
+import { PLAN_CREDITS, PlanId, normalizePlan, nextRenewal } from "./plans";
 
 const RETENTION_DAYS = 30;
 
@@ -135,6 +136,74 @@ export const syncAdminClaim = onCall(async (request) => {
 });
 
 // ---------------------------------------------------------------------------
+// Subscriptions: map a verified RevenueCat entitlement to a Firestore plan.
+// ---------------------------------------------------------------------------
+
+/** Active RevenueCat entitlement (studio > pro) for an app user, or "free". */
+async function fetchRevenueCatPlan(uid: string): Promise<PlanId | null> {
+  const secret = process.env.REVENUECAT_SECRET_KEY;
+  if (!secret) return null; // Not configured — caller falls back to client claim.
+  const res = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(uid)}`, {
+    headers: { Authorization: `Bearer ${secret}` },
+  });
+  if (!res.ok) {
+    logger.error("RevenueCat lookup failed", { status: res.status });
+    return "free";
+  }
+  const body = (await res.json()) as {
+    subscriber?: { entitlements?: Record<string, { expires_date?: string | null }> };
+  };
+  const ents = body.subscriber?.entitlements ?? {};
+  const active = (id: string) => {
+    const e = ents[id];
+    if (!e) return false;
+    return e.expires_date == null || new Date(e.expires_date).getTime() > Date.now();
+  };
+  if (active("studio")) return "studio";
+  if (active("pro")) return "pro";
+  return "free";
+}
+
+/**
+ * Called by the app/web after a purchase or on launch. Determines the user's
+ * plan (verified against RevenueCat when REVENUECAT_SECRET_KEY is set, otherwise
+ * trusting the client's reported entitlement for dev), and updates Firestore —
+ * seeding the monthly credit balance whenever the plan changes.
+ */
+export const syncSubscription = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign in required.");
+  const uid = request.auth.uid;
+
+  const verified = await fetchRevenueCatPlan(uid);
+  const claimed = normalizePlan(request.data?.plan);
+  const plan: PlanId = verified ?? claimed; // verified wins when RC is configured
+
+  const ref = db.collection("users").doc(uid);
+  await db.runTransaction(async (tx) => {
+    const u = (await tx.get(ref)).data() || {};
+    if (u.role === "admin") return; // never downgrade an admin
+    const current = normalizePlan(u.plan);
+    if (current === plan) {
+      tx.set(ref, { plan }, { merge: true });
+      return;
+    }
+    // Plan changed: set the new allotment and start a fresh 30-day cycle.
+    tx.set(
+      ref,
+      {
+        plan,
+        credits: PLAN_CREDITS[plan],
+        creditsRenewAt: Timestamp.fromDate(nextRenewal()),
+        planUpdatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+  return { plan, credits: PLAN_CREDITS[plan] };
+});
+
+// ---------------------------------------------------------------------------
 // Admin: user monitoring
 // ---------------------------------------------------------------------------
 
@@ -153,11 +222,13 @@ export const adminListUsers = onCall(async (request) => {
     if (s && s.exists) profileByUid[s.id] = s.data() as FirebaseFirestore.DocumentData;
   });
 
-  const freeLimit = parseInt(process.env.FREE_UNCROPS || "3", 10);
+  const freeDaily = parseInt(process.env.FREE_DAILY || "3", 10);
+  const today = new Date().toISOString().slice(0, 10);
 
   const users = result.users.map((u) => {
     const p = profileByUid[u.uid] || {};
     const isAdmin = u.customClaims?.admin === true;
+    const plan = isAdmin ? "admin" : normalizePlan(p.plan);
     return {
       uid: u.uid,
       email: u.email ?? null,
@@ -170,15 +241,16 @@ export const adminListUsers = onCall(async (request) => {
       admin: isAdmin,
       createdAt: u.metadata.creationTime,
       lastSignInAt: u.metadata.lastSignInTime,
-      // Firestore profile fields:
-      pro: p.pro === true || p.role === "admin" || isAdmin,
-      uncropsUsed: p.uncropsUsed || 0,
+      // Plan / usage / platform (from the Firestore profile):
+      plan, // "free" | "pro" | "studio" | "admin"
+      credits: plan === "pro" || plan === "studio" ? p.credits ?? 0 : null,
+      freeUsedToday: p.freeDate === today ? p.freeUsed ?? 0 : 0,
       platforms: p.platforms || {}, // { web: true, ios: true }
       lastPlatform: p.lastPlatform ?? null,
     };
   });
 
-  return { users, freeLimit, nextPageToken: result.pageToken ?? null };
+  return { users, freeDaily, nextPageToken: result.pageToken ?? null };
 });
 
 /** Enable / disable a user account. */

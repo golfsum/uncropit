@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { uploadUserImage, uncropImage, getMyUsage } from "../lib/api";
+import { uploadUserImage, uncropImage, getMyUsage, MyUsage } from "../lib/api";
 
-const FREE_LIMIT = 3;
+const FREE_DAILY = 3;
 const ASPECTS = [
   { id: "1:1", label: "Square" },
   { id: "4:5", label: "4:5" },
@@ -19,15 +19,15 @@ export default function Uncrop() {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [stage, setStage] = useState<"idle" | "uploading" | "processing">("idle");
   const [error, setError] = useState("");
-  const [usage, setUsage] = useState({ used: 0, pro: false });
+  const [usage, setUsage] = useState<MyUsage>({ plan: "free", credits: null, freeUsedToday: 0 });
 
   useEffect(() => {
     getMyUsage().then(setUsage);
   }, [resultUrl]);
 
-  const remaining = Math.max(0, FREE_LIMIT - usage.used);
+  const remaining = Math.max(0, FREE_DAILY - usage.freeUsedToday);
   const busy = stage !== "idle";
-  const limitReached = !usage.pro && remaining <= 0;
+  const limitReached = usage.plan === "free" && remaining <= 0;
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -118,7 +118,8 @@ export default function Uncrop() {
 
         {limitReached && (
           <div className="app-note">
-            You've used all {FREE_LIMIT} free un-crops. Upgrade to Pro for unlimited use. (Coming soon.)
+            You've used all {FREE_DAILY} free un-crops for today. They reset tomorrow, or upgrade in the
+            app for monthly credits.
           </div>
         )}
 

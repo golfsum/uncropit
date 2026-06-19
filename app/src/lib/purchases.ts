@@ -3,31 +3,44 @@
  *
  * Everything is guarded so the app still runs where the native module isn't
  * available or isn't configured (Expo Go, missing API key): purchases simply
- * report "not available" and the trial logic stays in charge.
+ * report "free" and the server-side free daily quota stays in charge.
  *
  * Real subscriptions require:
- *   - A paid Apple Developer account + App Store Connect with two auto-renewable
- *     subscription products (monthly $3.99, yearly $39.99) sharing a group, with
- *     a 3-day free trial as an introductory offer.
- *   - A RevenueCat project with an entitlement named "pro" attached to both, and
- *     the iOS public API key in EXPO_PUBLIC_REVENUECAT_IOS_KEY.
+ *   - A paid Apple Developer account + App Store Connect with FOUR auto-renewable
+ *     subscription products in one group:
+ *       Pro:    uncropit_pro_monthly ($9.99),  uncropit_pro_yearly ($79.99)
+ *       Studio: uncropit_studio_monthly ($29.99), uncropit_studio_yearly ($239.99)
+ *   - A RevenueCat project with TWO entitlements, "pro" (attached to the Pro
+ *     products) and "studio" (attached to the Studio products), and the iOS
+ *     public API key in EXPO_PUBLIC_REVENUECAT_IOS_KEY.
  *   - A dev/standalone build (not Expo Go).
+ *
+ * The credit allotments live server-side (functions/src/plans.ts) and are granted
+ * by syncSubscription() once a purchase is verified, so they can't be faked.
  */
 import type { PurchasesPackage, CustomerInfo } from "react-native-purchases";
 
-export const PRO_ENTITLEMENT = "pro";
+export type PlanTier = "free" | "pro" | "studio";
+
+// RevenueCat entitlement identifiers.
+export const ENTITLEMENTS = { pro: "pro", studio: "studio" } as const;
 
 // Product identifiers to create in App Store Connect / RevenueCat.
 export const PRODUCT_IDS = {
-  monthly: "uncropit_pro_monthly",
-  yearly: "uncropit_pro_yearly",
+  proMonthly: "uncropit_pro_monthly",
+  proYearly: "uncropit_pro_yearly",
+  studioMonthly: "uncropit_studio_monthly",
+  studioYearly: "uncropit_studio_yearly",
 };
 
 // Display fallbacks used when RevenueCat isn't returning live prices yet.
 export const PRICE_FALLBACK = {
-  monthly: "$3.99",
-  yearly: "$39.99",
+  pro: { monthly: "$9.99", yearly: "$79.99" },
+  studio: { monthly: "$29.99", yearly: "$239.99" },
 };
+
+// Monthly credits per tier (mirrors functions/src/plans.ts for display only).
+export const TIER_CREDITS = { pro: 100, studio: 400 };
 
 let configured = false;
 
@@ -60,17 +73,21 @@ export async function initPurchases(apiKey?: string, appUserId?: string | null):
   }
 }
 
-function hasPro(info: CustomerInfo | undefined): boolean {
-  return !!info?.entitlements?.active?.[PRO_ENTITLEMENT];
+/** The highest active entitlement (studio > pro) for the current customer. */
+function planFrom(info: CustomerInfo | undefined): PlanTier {
+  const active = info?.entitlements?.active ?? {};
+  if (active[ENTITLEMENTS.studio]) return "studio";
+  if (active[ENTITLEMENTS.pro]) return "pro";
+  return "free";
 }
 
-export async function getIsPro(): Promise<boolean> {
+export async function getActivePlan(): Promise<PlanTier> {
   const P = mod();
-  if (!P || !configured) return false;
+  if (!P || !configured) return "free";
   try {
-    return hasPro(await P.getCustomerInfo());
+    return planFrom(await P.getCustomerInfo());
   } catch {
-    return false;
+    return "free";
   }
 }
 
@@ -85,19 +102,19 @@ export async function getPackages(): Promise<PurchasesPackage[]> {
   }
 }
 
-export async function purchase(pkg: PurchasesPackage): Promise<boolean> {
+export async function purchase(pkg: PurchasesPackage): Promise<PlanTier> {
   const P = mod();
-  if (!P || !configured) return false;
+  if (!P || !configured) return "free";
   const { customerInfo } = await P.purchasePackage(pkg);
-  return hasPro(customerInfo);
+  return planFrom(customerInfo);
 }
 
-export async function restore(): Promise<boolean> {
+export async function restore(): Promise<PlanTier> {
   const P = mod();
-  if (!P || !configured) return false;
+  if (!P || !configured) return "free";
   try {
-    return hasPro(await P.restorePurchases());
+    return planFrom(await P.restorePurchases());
   } catch {
-    return false;
+    return "free";
   }
 }

@@ -12,9 +12,17 @@
  */
 import { onCall, HttpsError, CallableRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { randomUUID } from "crypto";
 import { db, storage } from "./admin";
+import {
+  FREE_DAILY,
+  PLAN_CREDITS,
+  isPaidPlan,
+  normalizePlan,
+  dayKey,
+  nextRenewal,
+} from "./plans";
 
 // Copy an (ephemeral) result image into the user's Storage and return a durable
 // Firebase download URL (token-protected). Used for Pro history.
@@ -50,6 +58,9 @@ interface AiInput {
   fileName?: string;
   // Where the request came from: "web" | "ios" | "android" (for admin insight).
   platform?: string;
+  // Stable device id (keychain/localStorage UUID) — free quota is shared across
+  // all accounts on the same device to stop trial farming.
+  deviceId?: string;
   // Animate: optional per-request driving video URL (overrides the env default).
   drivingVideoUrl?: string;
   template?: string;
@@ -58,6 +69,16 @@ interface AiInput {
 function requireAuth(request: CallableRequest): string {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign in required.");
   return request.auth.uid;
+}
+
+/** Fields recording which platform the account is active on (for the dashboard). */
+function platformPatch(platform: string | null): Record<string, unknown> {
+  if (!platform) return {};
+  return {
+    lastPlatform: platform,
+    platforms: { [platform]: true },
+    lastActiveAt: FieldValue.serverTimestamp(),
+  };
 }
 
 async function runReplicate(model: string, input: Record<string, unknown>): Promise<string> {
@@ -208,40 +229,92 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
   const provider = (process.env.AI_PROVIDER || "ideogram").toLowerCase();
   const aspect = input.aspectRatio || process.env.REPLICATE_UNCROP_ASPECT || "16:9";
 
-  // --- Server-side free-usage limit (un-bypassable via cache/incognito) ---
-  // The count lives on the user's account, checked + reserved atomically here.
-  const FREE_LIMIT = parseInt(process.env.FREE_UNCROPS || "3", 10);
-  const userRef = db.collection("users").doc(uid);
-
-  // Track which platform(s) this account is active on, for the admin dashboard.
+  // --- Server-side usage gate (un-bypassable via cache/incognito) ---
+  // Paid tiers spend monthly credits; free tier gets FREE_DAILY un-crops per UTC
+  // day, counted against BOTH the account and the device (so making new accounts
+  // on the same device can't farm extra free credits).
   const platform = typeof input.platform === "string" ? input.platform : null;
-  if (platform) {
-    await userRef
-      .set(
-        {
-          lastPlatform: platform,
-          platforms: { [platform]: true },
-          lastActiveAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      )
-      .catch(() => undefined);
-  }
+  const deviceId =
+    typeof input.deviceId === "string" && input.deviceId.length >= 8
+      ? input.deviceId.slice(0, 128)
+      : null;
+  const today = dayKey();
 
-  let isPro = false;
-  const reserved = await db.runTransaction(async (tx) => {
+  const userRef = db.collection("users").doc(uid);
+  const deviceRef = deviceId ? db.collection("devices").doc(deviceId) : null;
+  const isAdmin = request.auth!.token.admin === true;
+
+  // `reserved` is the kind of slot we took, so we can refund it if the run fails.
+  let reserved: "credit" | "free" | null = null;
+  // Paid tiers (and admins) get a durable saved copy of the result for history.
+  let keepResult = false;
+
+  await db.runTransaction(async (tx) => {
     const u = (await tx.get(userRef)).data() || {};
-    isPro = request.auth!.token.admin === true || u.pro === true || u.role === "admin";
-    if (isPro) return false; // Pro / admin → unlimited, nothing to reserve.
-    const used = u.uncropsUsed || 0;
-    if (used >= FREE_LIMIT) {
+    const dev = deviceRef ? (await tx.get(deviceRef)).data() || {} : {};
+
+    // Admins are unlimited and never charged.
+    if (isAdmin || u.role === "admin") {
+      keepResult = true;
+      tx.set(userRef, platformPatch(platform), { merge: true });
+      return;
+    }
+
+    const plan = normalizePlan(u.plan);
+
+    if (isPaidPlan(plan)) {
+      // Lazy monthly refill: top up to the plan allotment once the period rolls.
+      const renewAt: Timestamp | undefined = u.creditsRenewAt;
+      const due = !renewAt || renewAt.toMillis() <= Date.now();
+      let credits = due ? PLAN_CREDITS[plan] : u.credits ?? 0;
+      const patch: Record<string, unknown> = { ...platformPatch(platform) };
+      if (due) patch.creditsRenewAt = Timestamp.fromDate(nextRenewal());
+
+      if (credits <= 0) {
+        const when = renewAt ? renewAt.toDate().toLocaleDateString() : "next cycle";
+        throw new HttpsError(
+          "resource-exhausted",
+          `You're out of credits. They renew on ${when}, or upgrade to Studio for more.`
+        );
+      }
+      patch.credits = credits - 1;
+      tx.set(userRef, patch, { merge: true });
+      reserved = "credit";
+      keepResult = true;
+      return;
+    }
+
+    // --- Free tier: per-account daily count ---
+    const accUsed = u.freeDate === today ? u.freeUsed ?? 0 : 0;
+    if (accUsed >= FREE_DAILY) {
       throw new HttpsError(
         "resource-exhausted",
-        `You've used all ${FREE_LIMIT} free un-crops. Upgrade to Pro to continue.`
+        `You've used all ${FREE_DAILY} free un-crops for today. They reset tomorrow, or upgrade for more.`
       );
     }
-    tx.set(userRef, { uncropsUsed: used + 1 }, { merge: true });
-    return true; // Reserved one free slot.
+
+    // --- Free tier: per-device daily count (shared across accounts) ---
+    if (deviceRef) {
+      const devUsed = dev.date === today ? dev.used ?? 0 : 0;
+      if (devUsed >= FREE_DAILY) {
+        throw new HttpsError(
+          "resource-exhausted",
+          `This device has used all ${FREE_DAILY} free un-crops for today. They reset tomorrow, or upgrade for more.`
+        );
+      }
+      tx.set(
+        deviceRef,
+        { date: today, used: devUsed + 1, uids: FieldValue.arrayUnion(uid), updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+    }
+
+    tx.set(
+      userRef,
+      { freeDate: today, freeUsed: accUsed + 1, ...platformPatch(platform) },
+      { merge: true }
+    );
+    reserved = "free";
   });
 
   try {
@@ -262,17 +335,22 @@ export const aiUncrop = onCall({ timeoutSeconds: 300, memory: "512MiB" }, async 
       });
     }
 
-    // Pro users get a durable saved copy for history; free users get the
+    // Paid/admin users get a durable saved copy for history; free users get the
     // ephemeral provider URL (download-only).
-    const finalUrl = isPro ? await persistResult(uid, resultUrl).catch(() => resultUrl) : resultUrl;
+    const finalUrl = keepResult ? await persistResult(uid, resultUrl).catch(() => resultUrl) : resultUrl;
     const jobId = await recordJob(uid, "uncrop", input, "succeeded", finalUrl);
     return { ok: true, jobId, resultUrl: finalUrl };
   } catch (e) {
-    // Refund the reserved free slot if the run itself failed.
-    if (reserved) {
+    // Refund whatever we reserved if the run itself failed.
+    if (reserved === "credit") {
+      await userRef.set({ credits: FieldValue.increment(1) }, { merge: true }).catch(() => undefined);
+    } else if (reserved === "free") {
       await userRef
-        .set({ uncropsUsed: FieldValue.increment(-1) }, { merge: true })
+        .set({ freeUsed: FieldValue.increment(-1) }, { merge: true })
         .catch(() => undefined);
+      if (deviceRef) {
+        await deviceRef.set({ used: FieldValue.increment(-1) }, { merge: true }).catch(() => undefined);
+      }
     }
     await recordJob(uid, "uncrop", input, "failed", undefined, String((e as Error).message));
     throw e;

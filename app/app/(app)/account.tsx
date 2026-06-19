@@ -26,7 +26,8 @@ function providerLabel(user: ReturnType<typeof useAuth>["user"]): string {
 
 export default function AccountScreen() {
   const { user, signOut, signInGoogle, signInApple } = useAuth();
-  const { status, isPro, trialDaysLeft } = useEntitlement();
+  const { plan, isPaid, credits, freeRemaining } = useEntitlement();
+  const planName = plan === "studio" ? "Studio" : plan === "pro" ? "Pro" : plan === "admin" ? "Admin" : "Free";
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -58,7 +59,7 @@ export default function AccountScreen() {
   }
 
   function confirmDeleteAccount() {
-    const subWarning = isPro
+    const subWarning = isPaid
       ? "\n\nYou have an active subscription. Deleting your account does NOT cancel it — cancel it first in Settings → Apple ID → Subscriptions, or you may keep being charged."
       : "";
     Alert.alert(
@@ -66,7 +67,7 @@ export default function AccountScreen() {
       `This permanently deletes your account, data, and history. This cannot be undone.${subWarning}`,
       [
         { text: "Cancel", style: "cancel" },
-        ...(isPro
+        ...(isPaid
           ? [{ text: "Manage subscription", onPress: () => Linking.openURL(MANAGE_SUBS_URL) }]
           : []),
         {
@@ -92,19 +93,27 @@ export default function AccountScreen() {
     <View style={styles.root}>
       <ScreenHeader subtitle="Manage your account." />
       <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-        {/* Subscription status — whole card is tappable when not Pro */}
-        {!isPro ? (
+        {/* Subscription status — whole card is tappable when not subscribed */}
+        {plan === "admin" ? (
+          <Card style={{ marginTop: 4, marginBottom: 14, borderColor: theme.accent }}>
+            <View style={styles.planRow}>
+              <View style={{ flex: 1 }}>
+                <Subtitle>Admin ✓</Subtitle>
+                <Body style={{ marginTop: 4 }}>Unlimited un-crops.</Body>
+              </View>
+              <Ionicons name="star" size={26} color={theme.accent} />
+            </View>
+          </Card>
+        ) : !isPaid ? (
           <Pressable onPress={() => router.push("/paywall")} style={{ marginTop: 4, marginBottom: 14 }}>
             <Card>
               <View style={styles.planRow}>
                 <View style={{ flex: 1 }}>
-                  <Subtitle>Free trial</Subtitle>
+                  <Subtitle>Free</Subtitle>
                   <Body style={{ marginTop: 4 }}>
-                    {status === "trialExpired"
-                      ? "Your trial has ended."
-                      : `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left in your free trial.`}
+                    {freeRemaining} of 3 free un-crops left today.
                   </Body>
-                  <Text style={styles.upgrade}>Tap to upgrade to Pro →</Text>
+                  <Text style={styles.upgrade}>Tap to upgrade →</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={22} color={theme.textDim} />
               </View>
@@ -114,12 +123,15 @@ export default function AccountScreen() {
           <Card style={{ marginTop: 4, marginBottom: 14, borderColor: theme.accent }}>
             <View style={styles.planRow}>
               <View style={{ flex: 1 }}>
-                <Subtitle>Pro ✓</Subtitle>
-                <Body style={{ marginTop: 4 }}>Thanks for subscribing — everything's unlocked.</Body>
+                <Subtitle>{planName} ✓</Subtitle>
+                <Body style={{ marginTop: 4 }}>{credits ?? 0} credits left this cycle.</Body>
               </View>
               <Ionicons name="star" size={26} color={theme.accent} />
             </View>
-            <Pressable onPress={() => Linking.openURL(MANAGE_SUBS_URL)} style={{ marginTop: 14 }}>
+            <Pressable onPress={() => router.push("/paywall")} style={{ marginTop: 12 }}>
+              <Text style={styles.link}>Change plan</Text>
+            </Pressable>
+            <Pressable onPress={() => Linking.openURL(MANAGE_SUBS_URL)} style={{ marginTop: 10 }}>
               <Text style={styles.link}>Manage or cancel subscription</Text>
             </Pressable>
           </Card>

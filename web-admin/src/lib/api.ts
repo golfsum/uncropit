@@ -15,6 +15,21 @@ import { functions, db, storage, auth } from "./firebase";
 
 const call = <T = any>(name: string) => httpsCallable<any, T>(functions, name);
 
+/** Stable per-browser id so the free daily quota can't be farmed via new accounts. */
+function deviceId(): string {
+  try {
+    const k = "uncropit.deviceId";
+    const existing = localStorage.getItem(k);
+    if (existing) return existing;
+    const fresh: string =
+      (crypto as any)?.randomUUID?.() ?? `web-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(k, fresh);
+    return fresh;
+  } catch {
+    return "web-unknown";
+  }
+}
+
 // ---- Un-crop (regular users) ----
 export interface AiResult {
   ok: boolean;
@@ -37,7 +52,7 @@ export async function uncropImage(params: {
   aspectRatio?: string;
   fileName?: string;
 }): Promise<AiResult> {
-  const res = await call<AiResult>("aiUncrop")({ ...params, platform: "web" });
+  const res = await call<AiResult>("aiUncrop")({ ...params, platform: "web", deviceId: deviceId() });
   return res.data;
 }
 
@@ -66,14 +81,29 @@ export async function deleteMyData(): Promise<void> {
   await call("deleteMyData")({});
 }
 
-/** Read the signed-in user's server-side usage (free un-crops used). */
-export async function getMyUsage(): Promise<{ used: number; pro: boolean }> {
+export interface MyUsage {
+  plan: "free" | "pro" | "studio" | "admin";
+  credits: number | null; // remaining monthly credits (paid only)
+  freeUsedToday: number; // free un-crops used today
+}
+
+/** Read the signed-in user's server-side plan + usage. */
+export async function getMyUsage(): Promise<MyUsage> {
   const uid = auth.currentUser?.uid;
-  if (!uid) return { used: 0, pro: false };
+  if (!uid) return { plan: "free", credits: null, freeUsedToday: 0 };
   const snap = await getDoc(doc(db, "users", uid));
   const d = snap.data() || {};
-  return { used: d.uncropsUsed || 0, pro: d.pro === true || d.role === "admin" };
+  const plan = d.role === "admin" ? "admin" : d.plan === "pro" || d.plan === "studio" ? d.plan : "free";
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    plan,
+    credits: plan === "pro" || plan === "studio" ? d.credits ?? 0 : null,
+    freeUsedToday: d.freeDate === today ? d.freeUsed || 0 : 0,
+  };
 }
+
+/** Re-sync the signed-in user's plan from their RevenueCat entitlement. */
+export const syncSubscription = () => call("syncSubscription")({}).then((r) => r.data);
 
 /** Permanently delete the signed-in user's account, data, and uploads. */
 export async function deleteAccount(): Promise<void> {
@@ -114,14 +144,15 @@ export interface AdminUser {
   createdAt: string;
   lastSignInAt: string;
   // Plan / usage / platform (from the Firestore profile).
-  pro: boolean;
-  uncropsUsed: number;
+  plan: "free" | "pro" | "studio" | "admin";
+  credits: number | null; // remaining monthly credits (paid tiers only)
+  freeUsedToday: number; // free un-crops used today
   platforms: Record<string, boolean>; // { web: true, ios: true }
   lastPlatform: string | null;
 }
 
 export const listUsers = (pageToken?: string) =>
-  call<{ users: AdminUser[]; freeLimit: number; nextPageToken: string | null }>("adminListUsers")({
+  call<{ users: AdminUser[]; freeDaily: number; nextPageToken: string | null }>("adminListUsers")({
     pageToken,
     max: 200,
   }).then((r) => r.data);

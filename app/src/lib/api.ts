@@ -11,12 +11,20 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { functions, db, storage, auth } from "./firebase";
+import { getDeviceId } from "./device";
 
 // ---- AI proxy callables ----
 const _uncrop = httpsCallable(functions, "aiUncrop");
 const _reply = httpsCallable(functions, "addTicketReply");
 const _deleteAccount = httpsCallable(functions, "deleteMyAccount");
 const _deleteData = httpsCallable(functions, "deleteMyData");
+const _syncSubscription = httpsCallable(functions, "syncSubscription");
+
+/** Re-sync this account's plan from its RevenueCat entitlement (server-verified). */
+export async function syncSubscription(plan?: string): Promise<{ plan: string; credits: number }> {
+  const res = await _syncSubscription(plan ? { plan } : {});
+  return res.data as { plan: string; credits: number };
+}
 
 /** Permanently delete the signed-in user's account, data, and uploads. */
 export async function deleteAccount(): Promise<void> {
@@ -73,7 +81,8 @@ export async function uncropImage(params: {
   aspectRatio?: string; // e.g. "16:9", "1:1", "4:5", "9:16"
   fileName?: string;
 }): Promise<AiResult> {
-  const res = await _uncrop({ ...params, platform: Platform.OS });
+  const deviceId = await getDeviceId();
+  const res = await _uncrop({ ...params, platform: Platform.OS, deviceId });
   return res.data as AiResult;
 }
 

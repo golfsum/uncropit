@@ -47,6 +47,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     "expo-router",
     "expo-apple-authentication",
+    "expo-secure-store",
     [
       // GoogleSignIn → AppCheckCore (Swift) can't link as a static library
       // against GoogleUtilities/RecaptchaInterop; static frameworks fix it.

@@ -12,7 +12,7 @@ import {
 
 export default function Users() {
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [freeLimit, setFreeLimit] = useState(3);
+  const [freeDaily, setFreeDaily] = useState(3);
   const [nextPage, setNextPage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,7 +25,7 @@ export default function Users() {
     try {
       const data = await listUsers(pageToken);
       setUsers((prev) => (pageToken ? [...prev, ...data.users] : data.users));
-      setFreeLimit(data.freeLimit ?? 3);
+      setFreeDaily(data.freeDaily ?? 3);
       setNextPage(data.nextPageToken);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load users.");
@@ -113,7 +113,7 @@ export default function Users() {
               <UserRow
                 key={u.uid}
                 u={u}
-                freeLimit={freeLimit}
+                freeDaily={freeDaily}
                 busy={busyUid === u.uid}
                 open={openUid === u.uid}
                 onToggleHistory={() => setOpenUid(openUid === u.uid ? null : u.uid)}
@@ -141,7 +141,7 @@ export default function Users() {
 
 function UserRow(props: {
   u: AdminUser;
-  freeLimit: number;
+  freeDaily: number;
   busy: boolean;
   open: boolean;
   onToggleHistory: () => void;
@@ -150,7 +150,7 @@ function UserRow(props: {
   onAdmin: () => void;
   onDelete: () => void;
 }) {
-  const { u, freeLimit, busy, open } = props;
+  const { u, freeDaily, busy, open } = props;
   return (
     <>
       <tr>
@@ -160,11 +160,15 @@ function UserRow(props: {
           {u.admin && <span className="badge on">admin</span>}
         </td>
         <td>
-          {u.pro ? (
-            <span className="badge on">Pro</span>
+          {u.plan === "admin" ? (
+            <span className="badge on">Admin</span>
+          ) : u.plan === "studio" ? (
+            <span className="badge on">Studio · {u.credits ?? 0} cr</span>
+          ) : u.plan === "pro" ? (
+            <span className="badge on">Pro · {u.credits ?? 0} cr</span>
           ) : (
             <span className="badge">
-              Free · {Math.min(u.uncropsUsed, freeLimit)}/{freeLimit} used
+              Free · {Math.min(u.freeUsedToday, freeDaily)}/{freeDaily} today
             </span>
           )}
         </td>

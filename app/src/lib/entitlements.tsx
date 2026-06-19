@@ -5,79 +5,111 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { doc, onSnapshot } from "firebase/firestore";
 import Constants from "expo-constants";
+import { db } from "./firebase";
 import { useAuth } from "./auth";
-import { initPurchases, getIsPro } from "./purchases";
+import { initPurchases, getActivePlan } from "./purchases";
+import { syncSubscription } from "./api";
 
-const TRIAL_DAYS = 3;
-const TRIAL_KEY = "uncropit.trialStartAt";
-const DAY_MS = 24 * 60 * 60 * 1000;
+/** Free un-crops per day (mirrors functions/src/plans.ts FREE_DAILY). */
+export const FREE_DAILY = 3;
 
-export type AccessStatus = "loading" | "trial" | "trialExpired" | "pro";
+export type Plan = "free" | "pro" | "studio" | "admin";
+export type AccessStatus = "loading" | Plan;
 
 interface EntitlementState {
   status: AccessStatus;
-  isPro: boolean;
-  trialDaysLeft: number;
-  trialEndsAt: number | null;
+  plan: Plan;
+  isPaid: boolean; // pro or studio
+  credits: number | null; // remaining monthly credits (paid tiers)
+  freeUsedToday: number;
+  freeRemaining: number;
   refresh: () => Promise<void>;
 }
 
 const Ctx = createContext<EntitlementState | undefined>(undefined);
 
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function EntitlementProvider({ children }: { children: React.ReactNode }) {
   const { user, initializing } = useAuth();
-  const [trialStart, setTrialStart] = useState<number | null>(null);
-  const [isPro, setIsPro] = useState(false);
+  const [plan, setPlan] = useState<Plan>("free");
+  const [credits, setCredits] = useState<number | null>(null);
+  const [freeUsedToday, setFreeUsedToday] = useState(0);
   const [ready, setReady] = useState(false);
+  const syncedFor = useRef<string | null>(null);
 
   const rcKey = (Constants.expoConfig?.extra as any)?.revenueCatIosKey || undefined;
 
-  // Establish the device-local trial start on first launch.
-  useEffect(() => {
-    (async () => {
-      try {
-        const stored = await AsyncStorage.getItem(TRIAL_KEY);
-        if (stored) {
-          setTrialStart(parseInt(stored, 10));
-        } else {
-          const now = Date.now();
-          await AsyncStorage.setItem(TRIAL_KEY, String(now));
-          setTrialStart(now);
-        }
-      } catch {
-        setTrialStart(Date.now());
-      }
-    })();
-  }, []);
-
+  // Verify the RevenueCat entitlement and push it to the server, which sets the
+  // Firestore plan + seeds credits. The onSnapshot below then reflects it.
   const refresh = useCallback(async () => {
-    await initPurchases(rcKey, user?.uid ?? null);
-    setIsPro(await getIsPro());
-    setReady(true);
+    if (!user) {
+      setReady(true);
+      return;
+    }
+    try {
+      await initPurchases(rcKey, user.uid);
+      const rcPlan = await getActivePlan();
+      await syncSubscription(rcPlan).catch(() => undefined);
+    } catch {
+      // ignore — free tier still works
+    } finally {
+      setReady(true);
+    }
   }, [rcKey, user?.uid]);
 
-  // (Re)check entitlements whenever auth resolves or the user changes.
+  // Run the subscription sync once auth resolves / the user changes.
   useEffect(() => {
-    if (!initializing) refresh();
-  }, [initializing, refresh]);
+    if (initializing) return;
+    if (user && syncedFor.current !== user.uid) {
+      syncedFor.current = user.uid;
+      refresh();
+    } else if (!user) {
+      setReady(true);
+    }
+  }, [initializing, user?.uid, refresh]);
 
-  const trialEndsAt = trialStart != null ? trialStart + TRIAL_DAYS * DAY_MS : null;
-  const trialDaysLeft =
-    trialEndsAt != null ? Math.max(0, Math.ceil((trialEndsAt - Date.now()) / DAY_MS)) : 0;
+  // Live-read the user's plan / credits / daily usage from Firestore.
+  useEffect(() => {
+    if (!user) {
+      setPlan("free");
+      setCredits(null);
+      setFreeUsedToday(0);
+      return;
+    }
+    const unsub = onSnapshot(
+      doc(db, "users", user.uid),
+      (snap) => {
+        const d = snap.data() || {};
+        const p: Plan =
+          d.role === "admin" ? "admin" : d.plan === "pro" || d.plan === "studio" ? d.plan : "free";
+        setPlan(p);
+        setCredits(p === "pro" || p === "studio" ? d.credits ?? 0 : null);
+        setFreeUsedToday(d.freeDate === todayKey() ? d.freeUsed ?? 0 : 0);
+        setReady(true);
+      },
+      () => setReady(true)
+    );
+    return unsub;
+  }, [user?.uid]);
+
+  const isPaid = plan === "pro" || plan === "studio";
+  const freeRemaining = Math.max(0, FREE_DAILY - freeUsedToday);
 
   const status: AccessStatus = useMemo(() => {
-    if (!ready || trialStart == null) return "loading";
-    if (isPro) return "pro";
-    if (trialEndsAt != null && Date.now() < trialEndsAt) return "trial";
-    return "trialExpired";
-  }, [ready, trialStart, isPro, trialEndsAt]);
+    if (!ready) return "loading";
+    return plan;
+  }, [ready, plan]);
 
   const value = useMemo<EntitlementState>(
-    () => ({ status, isPro, trialDaysLeft, trialEndsAt, refresh }),
-    [status, isPro, trialDaysLeft, trialEndsAt, refresh]
+    () => ({ status, plan, isPaid, credits, freeUsedToday, freeRemaining, refresh }),
+    [status, plan, isPaid, credits, freeUsedToday, freeRemaining, refresh]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -88,6 +120,3 @@ export function useEntitlement() {
   if (!ctx) throw new Error("useEntitlement must be used within <EntitlementProvider>");
   return ctx;
 }
-
-// Exposed for display elsewhere.
-export const TRIAL_LENGTH_DAYS = TRIAL_DAYS;

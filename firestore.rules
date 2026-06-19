@@ -16,10 +16,17 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
       allow create: if isOwner(uid);
-      // Users may update their profile but NOT privileged fields.
+      // Users may update their profile but NOT privileged fields. Plan, credits,
+      // and usage counters are server-only (set by Cloud Functions via Admin SDK)
+      // so they can't be self-granted or reset to dodge the limits.
       allow update: if (isOwner(uid)
                         && !request.resource.data.diff(resource.data)
-                              .affectedKeys().hasAny(['admin', 'disabled', 'role']))
+                              .affectedKeys().hasAny([
+                                'admin', 'disabled', 'role',
+                                'plan', 'credits', 'creditsRenewAt', 'planUpdatedAt',
+                                'freeUsed', 'freeDate', 'uncropsUsed',
+                                'platforms', 'lastPlatform', 'lastActiveAt'
+                              ]))
                     || isAdmin();
       allow delete: if isAdmin();
     }
@@ -49,6 +56,11 @@ service cloud.firestore {
     match /jobs/{jobId} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
       allow write: if false; // server-only
+    }
+
+    // Per-device free-quota counters (written by Cloud Functions only).
+    match /devices/{deviceId} {
+      allow read, write: if false; // server-only
     }
 
     // Aggregate stats doc, server-maintained, readable by admins.

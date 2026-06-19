@@ -3,30 +3,54 @@ import { View, Text, StyleSheet, Pressable, Alert, ScrollView, ActivityIndicator
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as AppleAuthentication from "expo-apple-authentication";
 import type { PurchasesPackage } from "react-native-purchases";
 import { useAuth } from "../src/lib/auth";
 import { useEntitlement } from "../src/lib/entitlements";
-import { getPackages, purchase, restore, PRICE_FALLBACK } from "../src/lib/purchases";
+import { getPackages, purchase, restore, PRODUCT_IDS, PRICE_FALLBACK, TIER_CREDITS } from "../src/lib/purchases";
 import { theme } from "../src/theme";
 
-const BENEFITS = [
-  "Unlimited AI un-crop",
-  "Export for every platform + App Store",
-  "Favicon (PNG & SVG) export",
-  "No watermarks, priority processing",
-];
+type Tier = "pro" | "studio";
+type Period = "yearly" | "monthly";
 
-type Plan = "yearly" | "monthly";
+const TIERS: {
+  id: Tier;
+  name: string;
+  credits: number;
+  benefits: string[];
+}[] = [
+  {
+    id: "pro",
+    name: "Pro",
+    credits: TIER_CREDITS.pro,
+    benefits: [
+      `${TIER_CREDITS.pro} credits / month`,
+      "High-speed processing",
+      "No watermarks",
+      "Saved history (30 days)",
+    ],
+  },
+  {
+    id: "studio",
+    name: "Studio",
+    credits: TIER_CREDITS.studio,
+    benefits: [
+      `${TIER_CREDITS.studio} credits / month`,
+      "Everything in Pro",
+      "Priority processing",
+      "Batch editing",
+    ],
+  },
+];
 
 export default function Paywall() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, signInGoogle, signInApple } = useAuth();
-  const { refresh, trialDaysLeft, status } = useEntitlement();
+  const { refresh, freeRemaining } = useEntitlement();
 
   const signedIn = !!user && !user.isAnonymous;
-  const [plan, setPlan] = useState<Plan>("yearly");
+  const [tier, setTier] = useState<Tier>("pro");
+  const [period, setPeriod] = useState<Period>("yearly");
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -34,12 +58,18 @@ export default function Paywall() {
     getPackages().then(setPackages);
   }, []);
 
-  // Live price from RevenueCat if available, else the configured fallback.
-  function priceFor(p: Plan): string {
-    const pkg = packages.find((x) =>
-      p === "yearly" ? x.packageType === "ANNUAL" : x.packageType === "MONTHLY"
-    );
-    return pkg?.product.priceString ?? PRICE_FALLBACK[p];
+  function productId(t: Tier, p: Period): string {
+    if (t === "pro") return p === "yearly" ? PRODUCT_IDS.proYearly : PRODUCT_IDS.proMonthly;
+    return p === "yearly" ? PRODUCT_IDS.studioYearly : PRODUCT_IDS.studioMonthly;
+  }
+
+  function pkgFor(t: Tier, p: Period): PurchasesPackage | undefined {
+    const id = productId(t, p);
+    return packages.find((x) => x.product.identifier === id);
+  }
+
+  function priceFor(t: Tier, p: Period): string {
+    return pkgFor(t, p)?.product.priceString ?? PRICE_FALLBACK[t][p];
   }
 
   async function doSignIn(kind: "google" | "apple") {
@@ -55,9 +85,7 @@ export default function Paywall() {
   }
 
   async function subscribe() {
-    const pkg = packages.find((x) =>
-      plan === "yearly" ? x.packageType === "ANNUAL" : x.packageType === "MONTHLY"
-    );
+    const pkg = pkgFor(tier, period);
     if (!pkg) {
       Alert.alert(
         "Not available yet",
@@ -67,10 +95,10 @@ export default function Paywall() {
     }
     try {
       setBusy("buy");
-      const ok = await purchase(pkg);
+      const newPlan = await purchase(pkg);
       await refresh();
-      if (ok) {
-        Alert.alert("You're Pro ✓", "Thanks for subscribing!");
+      if (newPlan !== "free") {
+        Alert.alert(`You're ${newPlan === "studio" ? "Studio" : "Pro"} ✓`, "Thanks for subscribing!");
         router.replace("/(app)");
       }
     } catch (e: any) {
@@ -83,14 +111,19 @@ export default function Paywall() {
   async function doRestore() {
     try {
       setBusy("restore");
-      const ok = await restore();
+      const plan = await restore();
       await refresh();
-      Alert.alert(ok ? "Restored ✓" : "Nothing to restore", ok ? "Your Pro access is active." : "No previous purchase found.");
-      if (ok) router.replace("/(app)");
+      Alert.alert(
+        plan !== "free" ? "Restored ✓" : "Nothing to restore",
+        plan !== "free" ? `Your ${plan === "studio" ? "Studio" : "Pro"} access is active.` : "No previous purchase found."
+      );
+      if (plan !== "free") router.replace("/(app)");
     } finally {
       setBusy(null);
     }
   }
+
+  const selected = TIERS.find((t) => t.id === tier)!;
 
   return (
     <ScrollView
@@ -98,19 +131,27 @@ export default function Paywall() {
       contentContainerStyle={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
     >
       <Ionicons name="sparkles" size={40} color={theme.primary} style={{ alignSelf: "center" }} />
-      <Text style={styles.title}>
-        {status === "trialExpired" ? "Your free trial has ended" : "Go Pro"}
-      </Text>
+      <Text style={styles.title}>Upgrade UnCrop It</Text>
       <Text style={styles.subtitle}>
-        {status === "trialExpired"
-          ? "Sign in and subscribe to keep using Uncrop it AI."
-          : trialDaysLeft > 0
-          ? `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left in your free trial.`
-          : "Unlock everything."}
+        You have {freeRemaining} free un-crop{freeRemaining === 1 ? "" : "s"} left today. Subscribe for monthly credits.
       </Text>
 
+      {/* Tier picker */}
+      <View style={styles.segment}>
+        {TIERS.map((t) => (
+          <Pressable
+            key={t.id}
+            onPress={() => setTier(t.id)}
+            style={[styles.segBtn, tier === t.id && styles.segBtnActive]}
+          >
+            <Text style={[styles.segTxt, tier === t.id && styles.segTxtActive]}>{t.name}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Benefits for the selected tier */}
       <View style={styles.benefits}>
-        {BENEFITS.map((b) => (
+        {selected.benefits.map((b) => (
           <View key={b} style={styles.benefitRow}>
             <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
             <Text style={styles.benefitTxt}>{b}</Text>
@@ -118,37 +159,37 @@ export default function Paywall() {
         ))}
       </View>
 
-      {/* Plans */}
-      <Pressable onPress={() => setPlan("yearly")} style={[styles.plan, plan === "yearly" && styles.planActive]}>
-        <View style={styles.badge}><Text style={styles.badgeTxt}>BEST VALUE · SAVE 16%</Text></View>
+      {/* Period */}
+      <Pressable onPress={() => setPeriod("yearly")} style={[styles.plan, period === "yearly" && styles.planActive]}>
+        <View style={styles.badge}><Text style={styles.badgeTxt}>BEST VALUE</Text></View>
         <View style={styles.planRow}>
           <View>
             <Text style={styles.planName}>Yearly</Text>
-            <Text style={styles.planSub}>{priceFor("yearly")} / year</Text>
+            <Text style={styles.planSub}>{priceFor(tier, "yearly")} / year</Text>
           </View>
           <Ionicons
-            name={plan === "yearly" ? "radio-button-on" : "radio-button-off"}
+            name={period === "yearly" ? "radio-button-on" : "radio-button-off"}
             size={24}
-            color={plan === "yearly" ? theme.primary : theme.textDim}
+            color={period === "yearly" ? theme.primary : theme.textDim}
           />
         </View>
       </Pressable>
 
-      <Pressable onPress={() => setPlan("monthly")} style={[styles.plan, plan === "monthly" && styles.planActive]}>
+      <Pressable onPress={() => setPeriod("monthly")} style={[styles.plan, period === "monthly" && styles.planActive]}>
         <View style={styles.planRow}>
           <View>
             <Text style={styles.planName}>Monthly</Text>
-            <Text style={styles.planSub}>{priceFor("monthly")} / month</Text>
+            <Text style={styles.planSub}>{priceFor(tier, "monthly")} / month</Text>
           </View>
           <Ionicons
-            name={plan === "monthly" ? "radio-button-on" : "radio-button-off"}
+            name={period === "monthly" ? "radio-button-on" : "radio-button-off"}
             size={24}
-            color={plan === "monthly" ? theme.primary : theme.textDim}
+            color={period === "monthly" ? theme.primary : theme.textDim}
           />
         </View>
       </Pressable>
 
-      {/* Primary action: sign in first (required), then subscribe. */}
+      {/* Sign in first (required), then subscribe. */}
       {!signedIn ? (
         <View style={{ gap: 10, marginTop: 18 }}>
           <Text style={styles.note}>Sign in to continue — your subscription is tied to your account.</Text>
@@ -167,7 +208,7 @@ export default function Paywall() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.ctaPrimaryTxt}>
-              Subscribe — {priceFor(plan)}{plan === "yearly" ? "/yr" : "/mo"}
+              Get {selected.name} — {priceFor(tier, period)}{period === "yearly" ? "/yr" : "/mo"}
             </Text>
           )}
         </Pressable>
@@ -177,15 +218,13 @@ export default function Paywall() {
         <Text style={styles.restore}>{busy === "restore" ? "Restoring…" : "Restore purchases"}</Text>
       </Pressable>
 
-      {status !== "trialExpired" && (
-        <Pressable onPress={() => router.back()} style={{ marginTop: 20, alignSelf: "center" }}>
-          <Text style={styles.maybeLater}>Maybe later</Text>
-        </Pressable>
-      )}
+      <Pressable onPress={() => router.back()} style={{ marginTop: 20, alignSelf: "center" }}>
+        <Text style={styles.maybeLater}>Maybe later</Text>
+      </Pressable>
 
       <Text style={styles.legal}>
         Subscriptions auto-renew until cancelled. Manage or cancel anytime in your App Store account settings.
-        A 3-day free trial applies to new subscribers. Terms & Privacy apply.
+        Unused monthly credits do not roll over. Terms & Privacy apply.
       </Text>
     </ScrollView>
   );
@@ -196,7 +235,18 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 22 },
   title: { color: theme.text, fontSize: 26, fontWeight: "800", textAlign: "center", marginTop: 12 },
   subtitle: { color: theme.textDim, fontSize: 15, textAlign: "center", marginTop: 6 },
-  benefits: { marginVertical: 22, gap: 12 },
+  segment: {
+    flexDirection: "row",
+    backgroundColor: theme.surfaceAlt,
+    borderRadius: 12,
+    padding: 4,
+    marginTop: 20,
+  },
+  segBtn: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: "center" },
+  segBtnActive: { backgroundColor: theme.primary },
+  segTxt: { color: theme.textDim, fontSize: 15, fontWeight: "700" },
+  segTxtActive: { color: "#fff" },
+  benefits: { marginVertical: 20, gap: 12 },
   benefitRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   benefitTxt: { color: theme.text, fontSize: 15 },
   plan: {

@@ -1,15 +1,13 @@
 import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../src/lib/auth";
-import { useEntitlement } from "../../src/lib/entitlements";
 import { theme } from "../../src/theme";
 
 export default function AppLayout() {
   const { user, initializing } = useAuth();
-  const { status } = useEntitlement();
   if (!initializing && !user) return <Redirect href="/(auth)/sign-in" />;
-  // After the 3-day trial, require login + a Pro subscription to continue.
-  if (status === "trialExpired") return <Redirect href="/paywall" />;
+  // Everyone gets a free daily quota; the paywall is opt-in (reached from the
+  // Account tab or when the daily limit is hit), not a hard gate.
 
   return (
     <Tabs
