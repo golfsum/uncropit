@@ -301,3 +301,7 @@ button.danger { background: transparent; color: var(--danger); font-weight: 700;
 .legal-doc p, .legal-doc li { color: #d7d7e2; }
 .legal-doc ul { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
 .legal-doc a { color: var(--primary); }
+
+/* Resize platform chips with brand icons */
+.chip-platform { flex-direction: row !important; align-items: center; gap: 7px; }
+.chip-ico { display: inline-flex; font-size: 16px; line-height: 0; }

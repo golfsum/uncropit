@@ -1,8 +1,31 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  FaInstagram,
+  FaTiktok,
+  FaYoutube,
+  FaFacebook,
+  FaXTwitter,
+  FaLinkedin,
+  FaPinterest,
+  FaAppStore,
+} from "react-icons/fa6";
+import { IoGlobeOutline, IoOptionsOutline } from "react-icons/io5";
 import { PLATFORMS, PNG_PLATFORMS, SizePreset } from "../lib/presets";
 import { recordResize, getMyUsage, MyUsage } from "../lib/api";
 import OutOfCreditsModal from "../components/OutOfCreditsModal";
+
+const PLATFORM_ICONS: Record<string, ReactNode> = {
+  Instagram: <FaInstagram />,
+  TikTok: <FaTiktok />,
+  YouTube: <FaYoutube />,
+  Facebook: <FaFacebook />,
+  "X / Twitter": <FaXTwitter />,
+  LinkedIn: <FaLinkedin />,
+  Pinterest: <FaPinterest />,
+  "App Store": <FaAppStore />,
+  Favicon: <IoGlobeOutline />,
+};
 
 const RESIZE_FREE_DAILY = 3;
 
@@ -157,7 +180,7 @@ export default function Resize() {
             {PLATFORMS.map((p, i) => (
               <button
                 key={p.platform}
-                className={`chip ${!custom && i === platformIdx ? "on" : ""}`}
+                className={`chip chip-platform ${!custom && i === platformIdx ? "on" : ""}`}
                 onClick={() => {
                   setCustom(false);
                   setPlatformIdx(i);
@@ -165,10 +188,14 @@ export default function Resize() {
                   if (PNG_PLATFORMS.includes(p.platform)) setFit("fill");
                 }}
               >
+                <span className="chip-ico">{PLATFORM_ICONS[p.platform] ?? <IoGlobeOutline />}</span>
                 {p.platform}
               </button>
             ))}
-            <button className={`chip ${custom ? "on" : ""}`} onClick={() => setCustom(true)}>Custom</button>
+            <button className={`chip chip-platform ${custom ? "on" : ""}`} onClick={() => setCustom(true)}>
+              <span className="chip-ico"><IoOptionsOutline /></span>
+              Custom
+            </button>
           </div>
 
           {/* Sizes or custom */}
